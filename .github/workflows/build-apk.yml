@@ -1,0 +1,60 @@
+name: Buduj KeraBot Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pobierz kod repozytorium
+        uses: actions/checkout@v4
+
+      - name: Skonfiguruj Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Skonfiguruj Java 21 (Wymagana dla Gradle / Android SDK)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Zainstaluj zaleznosci i wygeneruj natywny projekt Android
+        run: |
+          npm install --no-audit --no-fund
+          if [ ! -d "android" ]; then npx cap add android; fi
+          node scripts/apply_native_bridge.js
+          npx cap sync android
+
+      - name: Zbuduj uniwersalny plik APK (Debug / Testowy)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Przygotuj gotowy plik KeraBot-Seba-latest.apk
+        run: |
+          mkdir -p release_out
+          cp android/app/build/outputs/apk/debug/app-debug.apk release_out/KeraBot-Seba-latest.apk
+
+      - name: Zapisz APK jako artefakt GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: KeraBot-Seba-APK
+          path: release_out/KeraBot-Seba-latest.apk
+
+      - name: Opublikuj staly link do pobrania w GitHub Releases (latest)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "KeraBot AI HUB Android (Najnowsze APK)"
+          body: "Automatycznie zbudowana uniwersalna aplikacja Android dla Galaxy Z Fold7, Galaxy S24 Ultra, Vivo X300 Ultra i kazdego innego telefonu z Androidem."
+          files: release_out/KeraBot-Seba-latest.apk
+          make_latest: true

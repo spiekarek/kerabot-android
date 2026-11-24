@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0.0",
+  "updated_at": "2026-11-24T17:02:00+01:00",
+  "apk_latest": {
+    "version": "0.1.0",
+    "build_code": 1,
+    "release_date": "2026-11-24",
+    "apk_filename": "KeraBot-Seba-v0.1.0.apk",
+    "download_url": "https://github.com/spiekarek/kerabot-android/releases/latest/download/KeraBot-Seba-latest.apk",
+    "drive_folder": "G:\\Mój dysk\\AI HUB DRIVE\\PROJECTS\\KERABOT_ANDROID_APK\\DO_POBRANIA\\",
+    "changelog_pl": [
+      "Pierwsza uniwersalna wersja na wszystkie urządzenia Android (Galaxy Z Fold7, Galaxy S24 Ultra, Vivo X300 Ultra).",
+      "Układ adaptacyjny: dwupanelowy na rozłożonym Fold7, jednokolumnowy na klasycznych ekranach.",
+      "Wbudowane Centrum Aktualizacji dla aplikacji, gier SebaGry i narzędzi.",
+      "Test mikrofonu i dyktowania po polsku oraz głośny kanał powiadomień AI HUB PILNE.",
+      "Uniwersalny skrót do natywnych ustawień dźwięków powiadomień na każdym Androidzie."
+    ]
+  },
+  "modules": [
+    {
+      "id": "kerabot-web",
+      "category": "system",
+      "name": "KeraBot — Pokój i Centrum Życiowe",
+      "version": "2.4.0",
+      "status": "ONLINE",
+      "url": "https://kordian.s-piekarek.workers.dev/#pokoj",
+      "notes": "Główny pokój wieloagentowy i zarządzanie zadaniami AI HUB."
+    },
+    {
+      "id": "gotyx-classic-turbo",
+      "category": "gry",
+      "name": "Gotyx Classic Turbo",
+      "version": "1.2.0",
+      "status": "QA_PASS",
+      "url": "https://kordian.s-piekarek.workers.dev/",
+      "notes": "Klasyczny układ, 60 FPS, 263 grafiki w cache, 3 checkpointy."
+    },
+    {
+      "id": "antygot",
+      "category": "gry",
+      "name": "AntyGot & AntyNext",
+      "version": "3.4.0",
+      "status": "QA_PASS",
+      "url": "https://kordian.s-piekarek.workers.dev/",
+      "notes": "Edytor HUD v1.2, Zaznacz poprawkę, telemetria P95."
+    },
+    {
+      "id": "nowa-huta-3d",
+      "category": "gry",
+      "name": "Nowa Huta 3D + Blender 5.3",
+      "version": "1.1.0",
+      "status": "QA_PASS",
+      "url": "https://kordian.s-piekarek.workers.dev/",
+      "notes": "MapLibre + OpenFreeMap OSM 3D bez kluczy API, dzień/noc."
+    },
+    {
+      "id": "seba-rozliczenia",
+      "category": "narzedzia",
+      "name": "Seba Rozliczenia",
+      "version": "2.4.0",
+      "status": "QA_PASS",
+      "url": "https://kordian.s-piekarek.workers.dev/",
+      "notes": "SebaCore 34/34 PASS, tryb Szef + Sprzedawca, dyktowanie PL, eksport Excel/Word/JSON."
+    },
+    {
+      "id": "mapa-radnego-d18",
+      "category": "narzedzia",
+      "name": "Mapa Inwestycji Radnego D18",
+      "version": "1.1.0",
+      "status": "QA_PASS",
+      "url": "https://kordian.s-piekarek.workers.dev/",
+      "notes": "OSM + Satelita Nowa Huta, kalkulator ZDMK, pomiar m/m2."
+    },
+    {
+      "id": "radar-okazji",
+      "category": "narzedzia",
+      "name": "Seba Radar Okazji",
+      "version": "1.0.0",
+      "status": "QA_PASS",
+      "url": "https://kordian.s-piekarek.workers.dev/",
+      "notes": "Historia cen i szybkie sprawdzanie 5 sklepów 1 kliknięciem."
+    }
+  ]
+}

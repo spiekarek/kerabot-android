@@ -1,0 +1,19 @@
+{
+  "appId": "pl.seba.kerabot",
+  "appName": "KeraBot AI HUB",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https",
+    "allowNavigation": [
+      "*.workers.dev",
+      "*.github.io",
+      "github.com",
+      "raw.githubusercontent.com"
+    ]
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "iconColor": "#2563EB"
+    }
+  }
+}

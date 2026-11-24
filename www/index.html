@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>KeraBot AI HUB — Aplikacja Android</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-logo">K</div>
+        <div>
+          <h1 class="brand-title">KeraBot AI HUB</h1>
+          <p class="brand-sub" id="device-mode-label">Uniwersalna aplikacja Android</p>
+        </div>
+      </div>
+      <span class="badge ok" id="app-version-badge">v0.1.0</span>
+    </header>
+
+    <div class="layout">
+      <!-- Boczny panel (widoczny automatycznie na rozlozonym Galaxy Z Fold7 / tablecie) -->
+      <aside class="sidebar" aria-label="Nawigacja boczna">
+        <button class="nav-btn active" data-tab="start"><span class="ico">🏠</span><span>Start i KeraBot</span></button>
+        <button class="nav-btn" data-tab="updates"><span class="ico">🚀</span><span>Centrum Aktualizacji</span></button>
+        <button class="nav-btn" data-tab="voice"><span class="ico">🎤</span><span>Mikrofon i Głos</span></button>
+        <button class="nav-btn" data-tab="sounds"><span class="ico">🔔</span><span>Dźwięki i Alerty</span></button>
+        <button class="nav-btn" data-tab="templates"><span class="ico">🧩</span><span>Szablony Wydań</span></button>
+      </aside>
+
+      <main class="main-content">
+        <!-- Baner nowej wersji APK -->
+        <div class="update-banner" id="update-banner">
+          <div>
+            <strong id="update-banner-title">🚀 Dostępna nowa aktualizacja!</strong>
+            <div style="font-size: 13px; color: #cbd5e1;" id="update-banner-desc">Kliknij, aby pobrać i wgrać nowszą wersję.</div>
+          </div>
+          <a class="btn success" style="width: auto;" id="update-banner-btn" href="#" target="_blank" rel="noopener">Pobierz i zainstaluj</a>
+        </div>
+
+        <!-- ZAKLADKA 1: START -->
+        <section class="tab-panel active" id="tab-start">
+          <div class="card">
+            <h2>🏠 Centrum Sterowania Sebastiana</h2>
+            <p>Jedna uniwersalna aplikacja na wszystkie Twoje urządzenia z Androidem (Galaxy Z Fold7, Galaxy S24 Ultra, Vivo X300 Ultra i każdy kolejny telefon).</p>
+            <div class="btn-row">
+              <a class="btn primary" href="https://kordian.s-piekarek.workers.dev/#pokoj" target="_blank" rel="noopener">💬 Otwórz Pokój KeraBota (Live)</a>
+              <button class="btn success" id="btn-quick-check-updates">🚀 Sprawdź aktualizacje teraz</button>
+              <button class="btn warn" id="btn-quick-test-alarm">🔔 Wyślij testowy głośny alarm</button>
+              <button class="btn" id="btn-quick-open-sounds">⚙️ Ustawienia dźwięków w telefonie</button>
+            </div>
+            <div class="status-log" id="start-status">Gotowy do pracy. Wykryty układ ekranu aktualizuje się automatycznie (Fold7 dwupanelowo / klasyczny telefon 1 kolumna).</div>
+          </div>
+
+          <div class="grid-2">
+            <div class="card">
+              <h2>📱 Informacje o tym urządzeniu</h2>
+              <p id="device-info-text">Ładowanie danych urządzenia...</p>
+            </div>
+            <div class="card">
+              <h2>🛡️ Tryb bezpieczeństwa</h2>
+              <p>Aplikacja działa wyłącznie pod Twoją kontrolą. Żadne zmiany ustawień nie dzieją się w tle bez Twojego kliknięcia.</p>
+              <span class="badge ok">Piecza Sebastiana: AKTYWNA</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ZAKLADKA 2: CENTRUM AKTUALIZACJI -->
+        <section class="tab-panel" id="tab-updates">
+          <div class="card">
+            <h2>🚀 Centrum Aktualizacji AI HUB, Gier i Narzędzi</h2>
+            <p>Jedno miejsce ze stanem wersji Twojej aplikacji Android (`.apk`), gier SebaGry oraz narzędzi biznesowych.</p>
+            <div class="btn-row" style="margin-bottom: 12px;">
+              <button class="btn primary" id="btn-refresh-manifest">🔄 Sprawdź nowe wersje w chmurze</button>
+              <a class="btn success" id="btn-download-latest-apk" href="#" target="_blank" rel="noopener">⬇️ Pobierz najnowsze APK</a>
+            </div>
+            <div class="status-log" id="updates-status">Ładowanie manifestu aktualizacji...</div>
+          </div>
+
+          <div class="card">
+            <h2>📦 Co nowego w obecnej wersji APK</h2>
+            <ul id="apk-changelog-list" style="margin: 0; padding-left: 18px; color: #cbd5e1; font-size: 14px; line-height: 1.55;"></ul>
+          </div>
+
+          <div class="card">
+            <h2>🎮 Gry SebaGry i Narzędzia (Manifest Live)</h2>
+            <div id="modules-list"></div>
+          </div>
+        </section>
+
+        <!-- ZAKLADKA 3: MIKROFON I GLOS -->
+        <section class="tab-panel" id="tab-voice">
+          <div class="card">
+            <h2>🎤 Test Mikrofonu i Dyktowania po polsku</h2>
+            <p>Sprawdź uprawnienie mikrofonu na swoim telefonie oraz rozpoznawanie mowy po polsku (`pl-PL`).</p>
+            <div class="btn-row">
+              <button class="btn primary" id="btn-mic-test">🎙️ Uruchom test mikrofonu</button>
+              <button class="btn success" id="btn-speech-start">🗣️ Dyktuj po polsku (Start / Stop)</button>
+            </div>
+            <div class="meter-wrap"><div class="meter-bar" id="mic-meter-bar"></div></div>
+            <div class="status-log" id="voice-status">Kliknij „Uruchom test mikrofonu”, aby sprawdzić poziom głosu.</div>
+            <div style="margin-top: 12px;">
+              <div style="font-size: 13px; color: var(--muted); margin-bottom: 6px;">Rozpoznany tekst (dyktowanie PL):</div>
+              <div class="transcript-box" id="speech-output">Tutaj pojawi się tekst podyktowany do mikrofonu...</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ZAKLADKA 4: DZWIEKI I ALERTY -->
+        <section class="tab-panel" id="tab-sounds">
+          <div class="card">
+            <h2>🔔 Głośne Powiadomienia AI HUB PILNE</h2>
+            <p>Aplikacja zakłada na każdym Androidzie własny, priorytetowy kanał powiadomień <strong>AI HUB PILNE</strong>, dzięki czemu możesz przypisać mu osobny, wyraźny dzwonek i odróżnić go od zwykłych reklam.</p>
+            <div class="btn-row">
+              <button class="btn warn" id="btn-send-alarm">🔔 Wyślij testowy alarm AI HUB (za 2 sek.)</button>
+              <button class="btn primary" id="btn-open-channel-settings">⚙️ Otwórz ustawienia dźwięku AI HUB</button>
+              <button class="btn" id="btn-open-system-sounds">🔊 Otwórz ogólne dźwięki Androida</button>
+              <button class="btn" id="btn-open-accessibility">♿ Ułatwienia dostępu (pod Etap 3)</button>
+            </div>
+            <div class="status-log" id="sounds-status">Gotowy do testu kanału powiadomień AI HUB PILNE.</div>
+          </div>
+        </section>
+
+        <!-- ZAKLADKA 5: SZABLONY WYDAN -->
+        <section class="tab-panel" id="tab-templates">
+          <div class="card">
+            <h2>🧩 Gotowe Szablony Wydań (dla agentów i Sebastiana)</h2>
+            <p>Gotowy szablon nowego wpisu do <code>updates_manifest.json</code> — skopiuj jednym kliknięciem przy wydawaniu nowej wersji gry, modułu lub APK.</p>
+            <div class="code-box" id="template-json-box"></div>
+            <div style="margin-top: 10px;">
+              <button class="btn primary" id="btn-copy-template">📋 Kopiuj szablon wydania JSON</button>
+            </div>
+            <div class="status-log" id="template-status">Szablon gotowy do skopiowania.</div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Dolny pasek (klasyczny telefon: S24 Ultra, Vivo X300 Ultra, zlozony Fold7) -->
+    <nav class="bottom-nav" aria-label="Nawigacja dolna">
+      <button class="nav-btn active" data-tab="start"><span class="ico">🏠</span><span>Start</span></button>
+      <button class="nav-btn" data-tab="updates"><span class="ico">🚀</span><span>Aktualiz.</span></button>
+      <button class="nav-btn" data-tab="voice"><span class="ico">🎤</span><span>Mikrofon</span></button>
+      <button class="nav-btn" data-tab="sounds"><span class="ico">🔔</span><span>Dźwięki</span></button>
+      <button class="nav-btn" data-tab="templates"><span class="ico">🧩</span><span>Szablony</span></button>
+    </nav>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

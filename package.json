@@ -1,0 +1,18 @@
+{
+  "name": "kerabot-android",
+  "version": "0.1.0",
+  "description": "Uniwersalna aplikacja Android KeraBot AI HUB (Galaxy Z Fold7, S24 Ultra, Vivo X300 Ultra i kazdy Android) z Centrum Aktualizacji",
+  "private": true,
+  "scripts": {
+    "cap:sync": "npx cap sync android",
+    "verify": "node -c www/app.js && node -e \"JSON.parse(require('fs').readFileSync('www/updates_manifest.json','utf8')); console.log('MANIFEST JSON OK')\""
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/local-notifications": "^6.1.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0"
+  }
+}

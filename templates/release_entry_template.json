@@ -1,0 +1,9 @@
+{
+  "id": "nowy-modul-id",
+  "category": "gry | narzedzia | system",
+  "name": "Nazwa gry lub modułu po polsku",
+  "version": "1.0.0",
+  "status": "QA_PASS",
+  "url": "https://kordian.s-piekarek.workers.dev/",
+  "notes": "Krótki opis co nowego, co naprawiono i na jakich urządzeniach przetestowano."
+}

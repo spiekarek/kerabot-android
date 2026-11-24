@@ -26,6 +26,9 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Skonfiguruj Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Zainstaluj zaleznosci i wygeneruj natywny projekt Android
         run: |
           npm install --no-audit --no-fund
@@ -37,24 +40,33 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Przygotuj gotowy plik KeraBot-Seba-latest.apk
+      - name: Przygotuj gotowe pliki KeraBot-Seba-latest.apk oraz wersjonowany APK
         run: |
           mkdir -p release_out
+          VER=$(node -p "require('./package.json').version")
           cp android/app/build/outputs/apk/debug/app-debug.apk release_out/KeraBot-Seba-latest.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk "release_out/KeraBot-Seba-v${VER}.apk"
 
       - name: Zapisz APK jako artefakt GitHub Actions
         uses: actions/upload-artifact@v4
         with:
           name: KeraBot-Seba-APK
-          path: release_out/KeraBot-Seba-latest.apk
+          path: release_out/*.apk
+
+      - name: Przesun tag latest na aktualny commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f latest
+          git push origin latest --force
 
       - name: Opublikuj staly link do pobrania w GitHub Releases (latest)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: "KeraBot AI HUB Android (Najnowsze APK)"
-          body: "Automatycznie zbudowana uniwersalna aplikacja Android dla Galaxy Z Fold7, Galaxy S24 Ultra, Vivo X300 Ultra i kazdego innego telefonu z Androidem."
-          files: release_out/KeraBot-Seba-latest.apk
+          body: "Automatycznie zbudowana uniwersalna aplikacja Android (Fold7, S24 Ultra, Vivo X300 Ultra i kazdy Android). Kliknij ponizej KeraBot-Seba-latest.apk aby pobrac na telefon."
+          files: release_out/*.apk
           make_latest: true

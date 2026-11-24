@@ -1,19 +1,19 @@
 {
   "schema_version": "1.0.0",
-  "updated_at": "2026-11-24T17:02:00+01:00",
+  "updated_at": "2026-11-24T23:42:00+01:00",
   "apk_latest": {
-    "version": "0.1.0",
-    "build_code": 1,
+    "version": "0.1.1",
+    "build_code": 2,
     "release_date": "2026-11-24",
-    "apk_filename": "KeraBot-Seba-v0.1.0.apk",
+    "apk_filename": "KeraBot-Seba-v0.1.1.apk",
     "download_url": "https://github.com/spiekarek/kerabot-android/releases/latest/download/KeraBot-Seba-latest.apk",
     "drive_folder": "G:\\Mój dysk\\AI HUB DRIVE\\PROJECTS\\KERABOT_ANDROID_APK\\DO_POBRANIA\\",
     "changelog_pl": [
-      "Pierwsza uniwersalna wersja na wszystkie urządzenia Android (Galaxy Z Fold7, Galaxy S24 Ultra, Vivo X300 Ultra).",
-      "Układ adaptacyjny: dwupanelowy na rozłożonym Fold7, jednokolumnowy na klasycznych ekranach.",
-      "Wbudowane Centrum Aktualizacji dla aplikacji, gier SebaGry i narzędzi.",
-      "Test mikrofonu i dyktowania po polsku oraz głośny kanał powiadomień AI HUB PILNE.",
-      "Uniwersalny skrót do natywnych ustawień dźwięków powiadomień na każdym Androidzie."
+      "Nowy domyślny motyw Fiolet Fusionote (#A855F7 + gradient róż-fiolet-błękit) oraz motyw Fiolet + Złoto Snapo i klasyczny Granat.",
+      "Przełącznik kolorów motywu w 1 kliknięciu (zapisywany w pamięci telefonu).",
+      "Dodano wieczorne nowości AI HUB: JoaSeb S43–S44 (L0–L3), Hybryda v3 Cebula (Gotyx + AntyGot) oraz Klocek #77 Radar Wiedzy.",
+      "Układ adaptacyjny na wszystkie urządzenia: dwupanelowy na rozłożonym Fold7, jednokolumnowy na S24 Ultra i Vivo X300 Ultra.",
+      "Natywny kanał powiadomień AI HUB PILNE, test mikrofonu PL i uniwersalne skróty ustawień Androida."
     ]
   },
   "modules": [
@@ -21,10 +21,19 @@
       "id": "kerabot-web",
       "category": "system",
       "name": "KeraBot — Pokój i Centrum Życiowe",
-      "version": "2.4.0",
+      "version": "2.5.0",
       "status": "ONLINE",
       "url": "https://kordian.s-piekarek.workers.dev/#pokoj",
-      "notes": "Główny pokój wieloagentowy i zarządzanie zadaniami AI HUB."
+      "notes": "Główny pokój wieloagentowy + JoaSeb S43–S44 (L0–L3 Szybki Start) + Klocek #77 Radar Wiedzy."
+    },
+    {
+      "id": "hybryda-v3-cebula",
+      "category": "gry",
+      "name": "Hybryda v3 Cebula (Gotyx + AntyGot)",
+      "version": "3.0.0",
+      "status": "QA_PASS",
+      "url": "https://kordian.s-piekarek.workers.dev/",
+      "notes": "Najnowsza hybryda E0–E3 gotowa 24.11 wieczorem."
     },
     {
       "id": "gotyx-classic-turbo",

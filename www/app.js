@@ -1,8 +1,8 @@
 (function () {
   "use strict";
 
-  const CURRENT_APP_VERSION = "0.1.0";
-  const CURRENT_BUILD_CODE = 1;
+  const CURRENT_APP_VERSION = "0.1.1";
+  const CURRENT_BUILD_CODE = 2;
   const REMOTE_MANIFEST_URL =
     "https://raw.githubusercontent.com/spiekarek/kerabot-android/main/www/updates_manifest.json";
 
@@ -315,7 +315,26 @@
   $("btn-mic-test").addEventListener("click", toggleMicTest);
   $("btn-speech-start").addEventListener("click", toggleSpeechPL);
 
+  // 0. Przelacznik motywow kolorystycznych (Fiolet Fusionote #A855F7 / Snapo / Granat)
+  function applyTheme(themeName) {
+    const valid = ["fusionote", "snapo", "granat"].includes(themeName) ? themeName : "fusionote";
+    document.documentElement.setAttribute("data-theme", valid);
+    try { localStorage.setItem("kerabot_theme", valid); } catch (e) {}
+    document.querySelectorAll("[data-theme-pick]").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.themePick === valid);
+    });
+  }
+
+  document.querySelectorAll("[data-theme-pick]").forEach((btn) => {
+    btn.addEventListener("click", () => applyTheme(btn.dataset.themePick));
+  });
+
   // Start aplikacji
+  try {
+    applyTheme(localStorage.getItem("kerabot_theme") || "fusionote");
+  } catch (e) {
+    applyTheme("fusionote");
+  }
   $("app-version-badge").textContent = "v" + CURRENT_APP_VERSION;
   updateDeviceInfo();
   loadUpdates(false);

@@ -52,10 +52,11 @@ jobs:
           test -c /dev/kvm
           sudo setfacl -m "u:$USER:rw" /dev/kvm
           image="system-images;android-34;google_apis;x86_64"
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install emulator "$image"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install platform-tools emulator "$image"
+          export PATH="$ANDROID_HOME/platform-tools:$PATH"
           echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --force --name kolejka --package "$image"
           "$ANDROID_HOME/emulator/emulator" -avd kolejka -port 5554 -no-window -no-audio -no-snapshot -gpu swiftshader_indirect > "$RUNNER_TEMP/kerabot-emulator.log" 2>&1 &
-          trap 'adb emu kill || true' EXIT
+          trap 'rc=$?; if [ "$rc" -ne 0 ]; then tail -n 40 "$RUNNER_TEMP/kerabot-emulator.log"; fi; adb emu kill || true' EXIT
           timeout 180 adb wait-for-device
           for i in $(seq 1 120); do
             if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then break; fi

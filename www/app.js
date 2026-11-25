@@ -264,24 +264,32 @@
     }
     recognition = new SpeechRec();
     recognition.lang = "pl-PL";
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = true;
+    let baseSpeech = ($("speech-output").textContent || "").startsWith("Tutaj pojawi") ? "" : ($("speech-output").textContent + " ");
     recognition.onstart = () => {
       isListening = true;
-      setStatus("voice-status", "🗣️ Słucham po polsku... Mów teraz!");
+      setStatus("voice-status", "🗣️ Słucham ciągle po polsku… kliknij ponownie aby zatrzymać!");
     };
     recognition.onresult = (ev) => {
       let text = "";
       for (let i = 0; i < ev.results.length; i++) {
         text += ev.results[i][0].transcript + " ";
       }
-      $("speech-output").textContent = text.trim();
+      const box = $("speech-output");
+      box.textContent = (baseSpeech + text).trim();
+      box.scrollTop = box.scrollHeight;
     };
     recognition.onerror = (ev) => {
+      if (ev.error === "no-speech" && isListening) return;
       isListening = false;
       setStatus("voice-status", "Błąd dyktowania: " + ev.error);
     };
     recognition.onend = () => {
+      if (isListening && recognition) {
+        baseSpeech = ($("speech-output").textContent || "").trim() + " ";
+        try { recognition.start(); return; } catch (e) {}
+      }
       isListening = false;
     };
     recognition.start();

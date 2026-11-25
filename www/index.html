@@ -39,7 +39,11 @@
       margin-bottom: 8px;
       font-size: 13.5px;
     }
-    .outbox-item.sent { border-left-color: var(--accent-2); opacity: 0.78; }
+    .outbox-item header { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 4px; }
+    .outbox-item time, .outbox-item small { color: var(--muted); font-size: 12px; }
+    .outbox-item small { display: block; margin-top: 6px; }
+    .outbox-item div { overflow-wrap: anywhere; }
+    .backup-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
     .outbox-img { max-width: 120px; border-radius: 8px; margin-top: 6px; display: block; }
     .release-card {
       padding: 12px 14px;
@@ -137,16 +141,23 @@
         <!-- ZAKLADKA: KOLEJKA OFFLINE -->
         <section class="tab-panel" id="tab-offline">
           <div class="card">
-            <h2>📦 Kolejka Offline-Online (Notatki, Dyktowanie i Zdjęcia bez sieci)</h2>
-            <p>Gdy nie masz zasięgu, zapisuj tutaj wiadomości i zdjęcia. Wszystko zostaje bezpiecznie w pamięci telefonu.</p>
+            <h2>Kolejka offline</h2>
+            <p>Zapisuj wiadomości i zdjęcia bez połączenia.</p>
+            <div class="backup-actions">
+              <button type="button" class="btn" id="btn-outbox-export">Zapisz kopię</button>
+              <button type="button" class="btn" id="btn-outbox-import">Przywróć z pliku</button>
+              <input type="file" id="outbox-import" accept=".json,application/json" hidden />
+            </div>
+            <p>Plik kopii zawiera wiadomości i zdjęcia.</p>
             <textarea id="outbox-text" class="transcript-box" rows="3" placeholder="Wpisz lub podyktuj wiadomość do Pokoju / AI HUB…"></textarea>
             <div class="btn-row" style="margin-top:10px;">
               <button type="button" class="btn primary" id="btn-outbox-dictate">🎤 Dyktuj po polsku (Ciągle)</button>
               <label class="btn" style="cursor:pointer;">📷 Dodaj zdjęcie (Offline)<input type="file" id="outbox-photo" accept="image/*" hidden /></label>
               <button type="button" class="btn success" id="btn-outbox-save">💾 Zapisz do Kolejki</button>
-              <button type="button" class="btn warn" id="btn-outbox-sync">🔄 Skopiuj kolejkę i otwórz Pokój</button>
+              <button type="button" class="btn warn" id="btn-outbox-sync">Kopiuj tekst</button>
+              <button type="button" class="btn" data-native-kb="https://kordian.s-piekarek.workers.dev/next#pokoj">Otwórz Pokój</button>
             </div>
-            <div class="status-log" id="outbox-status">Gotowy. Elementy zapisane offline nigdy nie giną.</div>
+            <div class="status-log" id="outbox-status" role="status">Kolejka jest zapisywana lokalnie na telefonie.</div>
           </div>
           <div class="card">
             <h2>📋 Zapisane na telefonie (<span id="outbox-count">0</span>)</h2>

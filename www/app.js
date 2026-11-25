@@ -121,99 +121,318 @@
 
   window.addEventListener("online", () => {
     updateNetworkUi();
-    setStatus("outbox-status", "🟢 Internet wrócił! Możesz zsynchronizować kolejkę 1 kliknięciem.");
+    setStatus("outbox-status", "🟢 Internet wrócił. Możesz otworzyć Pokój.");
   });
   window.addEventListener("offline", () => {
     updateNetworkUi();
     setStatus("outbox-status", "🟠 Tryb Offline — nowe wiadomości i zdjęcia zapiszą się lokalnie na telefonie.");
   });
 
-  // 4. Kolejka Offline (Outbox Pattern)
+  // 4. Kolejka offline
+  const OUTBOX_BACKUP_FORMAT = "kerabot-outbox";
+  const MAX_BACKUP_BYTES = 16 * 1024 * 1024;
+  const PHOTO_DATA_URL = /^data:(?:image\/[a-z0-9.+-]+|application\/octet-stream);base64,[a-z0-9+/]+={0,2}$/i;
   let pendingPhotoDataUrl = null;
+  let pendingPhotoRead = 0;
+  let copyingOutbox = false;
+  let exportingOutbox = false;
+  let importingOutbox = false;
 
   function loadOutbox() {
-    try { return JSON.parse(localStorage.getItem(OUTBOX_KEY) || "[]"); } catch (e) { return []; }
+    const items = JSON.parse(localStorage.getItem(OUTBOX_KEY) || "[]");
+    if (!Array.isArray(items)) throw new Error("Kolejka ma nieprawidłowy format.");
+    return items;
   }
+
   function saveOutbox(items) {
-    try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(items.slice(0, 50))); } catch (e) {}
+    try {
+      localStorage.setItem(OUTBOX_KEY, JSON.stringify(items));
+    } catch {
+      throw new Error("Telefon nie zapisał kolejki. Sprawdź wolne miejsce. Poprzednie wpisy zostały zachowane.");
+    }
+  }
+
+  function backupItem(item) {
+    if (!item || !["string", "number"].includes(typeof item.id)
+        || typeof item.text !== "string" || typeof item.createdAt !== "string"
+        || (item.photo != null && (typeof item.photo !== "string" || !PHOTO_DATA_URL.test(item.photo)))
+        || (!item.text.trim() && !item.photo)) {
+      throw new Error("W kopii jest uszkodzony wpis lub zdjęcie w nieobsługiwanym formacie.");
+    }
+    return {
+      id: item.id,
+      text: item.text,
+      createdAt: item.createdAt,
+      photo: item.photo || null,
+      sent: item.sent === true,
+      copiedAt: typeof item.copiedAt === "string" ? item.copiedAt : null,
+    };
+  }
+
+  function outboxItemKey({ id, text, createdAt, photo }) {
+    return JSON.stringify([id, text, createdAt, photo || null]);
   }
 
   function renderOutbox() {
-    const items = loadOutbox();
-    const cnt = $("outbox-count");
-    if (cnt) cnt.textContent = String(items.length);
-    const list = $("outbox-list");
-    if (!list) return;
-    if (!items.length) {
-      list.innerHTML = '<div style="font-size:13px;color:var(--muted);">Brak zapisanych pozycji w kolejce offline.</div>';
+    let items;
+    try {
+      items = loadOutbox();
+    } catch {
+      setStatus("outbox-status", "Nie udało się odczytać kolejki z pamięci telefonu.");
       return;
     }
-    list.innerHTML = items
-      .map((it) => {
-        const badge = it.sent ? "✅ Skopiowane do Pokoju" : "⏳ Czeka w pamięci telefonu";
-        const imgHtml = it.photo ? '<img class="outbox-img" src="' + it.photo + '" alt="Zdjęcie offline" />' : "";
-        return (
-          '<div class="outbox-item ' + (it.sent ? "sent" : "") + '">' +
-          '  <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:4px;">' +
-          '    <strong>' + badge + "</strong>" +
-          '    <span style="font-size:11px;color:var(--muted);">' + esc(it.createdAt) + "</span>" +
-          "  </div>" +
-          "  <div>" + esc(it.text || "(Tylko zdjęcie)") + "</div>" +
-          imgHtml +
-          "</div>"
-        );
-      })
-      .join("");
+    $("outbox-count").textContent = String(items.length);
+    const list = $("outbox-list");
+    list.replaceChildren();
+    if (!items.length) {
+      list.textContent = "Brak zapisanych pozycji w kolejce offline.";
+      return;
+    }
+    for (const item of items) {
+      const card = document.createElement("article");
+      card.className = "outbox-item";
+      const summary = document.createElement("header");
+      const status = document.createElement("strong");
+      if (item.photo) {
+        status.textContent = item.copiedAt
+          ? "Tekst w schowku · zdjęcie na telefonie"
+          : "Zdjęcie na telefonie";
+      } else if (item.copiedAt) {
+        status.textContent = "Tekst skopiowany do schowka";
+      } else {
+        status.textContent = "Na telefonie";
+      }
+      const time = document.createElement("time");
+      time.textContent = item.createdAt;
+      summary.append(status, time);
+      const content = document.createElement("div");
+      content.textContent = item.text || "(Tylko zdjęcie)";
+      card.append(summary, content);
+      if (item.sent && !item.copiedAt) {
+        const legacy = document.createElement("small");
+        legacy.textContent = "Starsza wersja oznaczyła wpis jako skopiowany. Sprawdź wpis i zdjęcie w Pokoju przed ponownym wysłaniem.";
+        card.append(legacy);
+      }
+      if (item.photo && /^data:image\//i.test(item.photo) && PHOTO_DATA_URL.test(item.photo)) {
+        const photo = document.createElement("img");
+        photo.className = "outbox-img";
+        photo.src = item.photo;
+        photo.alt = "Zdjęcie offline";
+        card.append(photo);
+      } else if (item.photo) {
+        const fallback = document.createElement("small");
+        fallback.textContent = "Załącznik zostanie zachowany w kopii. Brak podglądu obrazu.";
+        card.append(fallback);
+      }
+      list.append(card);
+    }
   }
 
-  $("outbox-photo")?.addEventListener("change", (ev) => {
-    const file = ev.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      pendingPhotoDataUrl = String(reader.result || "");
-      setStatus("outbox-status", "📷 Zdjęcie załączone — kliknij „Zapisz do Kolejki”.");
-    };
-    reader.readAsDataURL(file);
+  $("outbox-photo")?.addEventListener("change", async (event) => {
+    const read = ++pendingPhotoRead;
+    pendingPhotoDataUrl = null;
+    const input = event.target;
+    const file = input.files?.[0];
+    const button = $("btn-outbox-save");
+    if (!file) {
+      button.disabled = false;
+      return;
+    }
+    button.disabled = true;
+    try {
+      const url = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      if (read !== pendingPhotoRead) return;
+      if (typeof url !== "string" || !PHOTO_DATA_URL.test(url)) throw new Error();
+      pendingPhotoDataUrl = url;
+      setStatus("outbox-status", "Zdjęcie załączone. Zapisz je do kolejki.");
+    } catch {
+      if (read !== pendingPhotoRead) return;
+      input.value = "";
+      setStatus("outbox-status", "Nie udało się odczytać zdjęcia. Wybierz je ponownie.");
+    } finally {
+      if (read === pendingPhotoRead) button.disabled = false;
+    }
   });
 
   $("btn-outbox-save")?.addEventListener("click", () => {
-    const text = ($("outbox-text")?.value || "").trim();
+    const field = $("outbox-text");
+    const text = field.value.trim();
     if (!text && !pendingPhotoDataUrl) {
-      setStatus("outbox-status", "Wpisz/podyktuj wiadomość lub wybierz zdjęcie.");
+      setStatus("outbox-status", "Wpisz wiadomość lub wybierz zdjęcie.");
       return;
     }
-    const items = loadOutbox();
-    items.unshift({
-      id: Date.now(),
-      text,
-      photo: pendingPhotoDataUrl,
-      createdAt: new Date().toLocaleString("pl-PL"),
-      sent: false
-    });
-    saveOutbox(items);
-    if ($("outbox-text")) $("outbox-text").value = "";
-    pendingPhotoDataUrl = null;
-    renderOutbox();
-    setStatus("outbox-status", "✅ Zapisano bezpiecznie w pamięci telefonu (Kolejka Offline).");
+    try {
+      const item = {
+        id: crypto.randomUUID?.() || Date.now(),
+        text,
+        photo: pendingPhotoDataUrl,
+        createdAt: new Date().toLocaleString("pl-PL"),
+        sent: false,
+      };
+      saveOutbox([item, ...loadOutbox()]);
+      field.value = "";
+      $("outbox-photo").value = "";
+      pendingPhotoDataUrl = null;
+      renderOutbox();
+      setStatus("outbox-status", "Wpis zapisany na telefonie.");
+    } catch (error) {
+      setStatus("outbox-status", error.message);
+    }
   });
 
-  $("btn-outbox-sync")?.addEventListener("click", async () => {
-    if (!checkIsOnline()) {
-      setStatus("outbox-status", "🟠 Nadal brak internetu — pozycje są bezpieczne w kolejce.");
+  $("btn-outbox-sync")?.addEventListener("click", async (event) => {
+    if (copyingOutbox) return;
+    const button = event.currentTarget;
+    copyingOutbox = true;
+    button.disabled = true;
+    try {
+      const pending = loadOutbox().filter(item => item.text?.trim() && !item.copiedAt);
+      if (!pending.length) {
+        setStatus("outbox-status", "Brak nowych tekstów do skopiowania. Zdjęcia możesz zachować w kopii kolejki.");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(pending.map(item => "[" + item.createdAt + "] " + item.text).join("\n\n"));
+      } catch {
+        setStatus("outbox-status", "Schowek odmówił zapisu. Wpisy nadal są w kolejce.");
+        return;
+      }
+      const copied = new Set(pending.map(outboxItemKey));
+      const copiedAt = new Date().toISOString();
+      try {
+        saveOutbox(loadOutbox().map(item => copied.has(outboxItemKey(item)) ? { ...item, copiedAt } : item));
+        renderOutbox();
+        setStatus("outbox-status", "Tekst jest w schowku. Otwórz Pokój i wklej go. Zdjęcia dołącz osobno.");
+      } catch {
+        setStatus("outbox-status", "Tekst jest w schowku, ale nie udało się zapisać oznaczeń kolejki.");
+      }
+    } catch (error) {
+      setStatus("outbox-status", error.message);
+    } finally {
+      copyingOutbox = false;
+      button.disabled = false;
+    }
+  });
+
+  $("btn-outbox-export")?.addEventListener("click", (event) => {
+    if (exportingOutbox || importingOutbox) return;
+    const button = event.currentTarget;
+    try {
+      const items = loadOutbox().map(backupItem);
+      if (!items.length) {
+        setStatus("outbox-status", "Kolejka jest pusta.");
+        return;
+      }
+      const time = new Date().toISOString();
+      const fileName = "kerabot-kolejka-" + time.slice(0, 10) + ".json";
+      const backup = JSON.stringify({ format: OUTBOX_BACKUP_FORMAT, version: 1, exportedAt: time, items });
+      const blob = new Blob([backup], { type: "application/json" });
+      if (blob.size > MAX_BACKUP_BYTES) throw new Error("Kopia jest za duża do zapisania.");
+      const native = window.SebaOfflineBackup;
+      if (native?.postMessage) {
+        native.onmessage = (result) => {
+          exportingOutbox = false;
+          button.disabled = false;
+          const message = {
+            ok: "Kopia zapisana. Zawiera teksty i zdjęcia z kolejki.",
+            cancelled: "Anulowano zapis kopii.",
+            error: "Android nie zapisał kopii. Spróbuj w innym folderze.",
+          }[result.data];
+          setStatus("outbox-status", message || "Android nie potwierdził zapisu kopii.");
+        };
+        exportingOutbox = true;
+        button.disabled = true;
+        native.postMessage(backup);
+        return;
+      }
+      if (window.SebaAndroidBridge) throw new Error("Systemowy zapis kopii jest niedostępny w tym WebView.");
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = fileName;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      setStatus("outbox-status", "Rozpoczęto pobieranie kopii. Sprawdź plik w Pobranych.");
+    } catch (error) {
+      exportingOutbox = false;
+      button.disabled = false;
+      setStatus("outbox-status", error.message);
+    }
+  });
+
+  $("btn-outbox-import")?.addEventListener("click", (event) => {
+    if (exportingOutbox || importingOutbox) return;
+    const native = window.SebaOfflineBackup;
+    if (!native?.postMessage) {
+      $("outbox-import").click();
       return;
     }
-    const items = loadOutbox();
-    const pending = items.filter((x) => !x.sent);
-    if (pending.length) {
-      const joined = pending.map((p) => `[${p.createdAt}] ${p.text}`).join("\n\n");
-      try { await navigator.clipboard.writeText(joined); } catch (e) {}
-      items.forEach((x) => { x.sent = true; });
-      saveOutbox(items);
-      renderOutbox();
+    const button = event.currentTarget;
+    importingOutbox = true;
+    button.disabled = true;
+    native.onmessage = ({ data }) => {
+      importingOutbox = false;
+      button.disabled = false;
+      if (typeof data === "string" && data.startsWith("import:")) {
+        restoreOutbox(data.slice(7));
+      } else {
+        setStatus("outbox-status", data === "cancelled"
+          ? "Anulowano odtwarzanie kolejki." : "Android nie odczytał pliku kopii.");
+      }
+    };
+    try {
+      native.postMessage("open");
+    } catch {
+      importingOutbox = false;
+      button.disabled = false;
+      setStatus("outbox-status", "Nie udało się otworzyć wyboru pliku.");
     }
-    openKeraBotNative("https://kordian.s-piekarek.workers.dev/next#pokoj");
   });
+
+  $("outbox-import")?.addEventListener("change", async (event) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      if (file.size > MAX_BACKUP_BYTES) throw new Error("Plik kopii jest za duży.");
+      restoreOutbox(await file.text());
+    } catch (error) {
+      setStatus("outbox-status", error.name === "NotReadableError" ? "Nie udało się odczytać pliku kopii." : error.message);
+    } finally {
+      input.value = "";
+    }
+  });
+
+  function restoreOutbox(text) {
+    try {
+      let backup;
+      try { backup = JSON.parse(text); } catch {
+        throw new Error("Ten plik nie jest poprawnym JSON.");
+      }
+      const records = Array.isArray(backup) ? backup : backup?.items;
+      if (!Array.isArray(records) || (!Array.isArray(backup) && (backup.format !== OUTBOX_BACKUP_FORMAT || backup.version !== 1))) {
+        throw new Error("Nie rozpoznano wersji kopii kolejki KeraBota.");
+      }
+      const previous = loadOutbox();
+      const keys = new Set(previous.map(outboxItemKey));
+      const added = [];
+      for (const item of records.map(backupItem)) {
+        const key = outboxItemKey(item);
+        if (keys.has(key)) continue;
+        keys.add(key);
+        added.push(item);
+      }
+      if (added.length) saveOutbox([...previous, ...added]);
+      renderOutbox();
+      setStatus("outbox-status", "Przywrócono: " + added.length + ". Pominięte duplikaty: " + (records.length - added.length) + ".");
+    } catch (error) {
+      setStatus("outbox-status", error.message);
+    }
+  }
 
   // Ciagle dyktowanie PL do kolejki offline
   let outboxRec = null;

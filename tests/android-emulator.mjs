@@ -142,10 +142,16 @@ try {
   await view.run("localStorage.removeItem(" + JSON.stringify(key) + "); location.reload();");
   await retry(() => view.run('typeof window.SebaSwitchLocalTab'), value => value === "function", "brak ekranu przed odtworzeniem");
   await view.run('window.SebaSwitchLocalTab("offline"); document.querySelector("#btn-outbox-import").click();');
-  const pick = nodes => nodes.find(node => /kerabot-kolejka.*\.json/.test(node.text || node["content-desc"]));
+  const pick = nodes => nodes.find(node => /(^|, )kerabot-kolejka(?:\s*\(\d+\))?\.json($|, )/.test(node.text || node["content-desc"]) && node.enabled === "true");
   const files = await retry(uiNodes, nodes => Boolean(pick(nodes)), "systemowy wybór nie pokazuje zapisanej kopii");
   await tap(pick(files));
-  await requireStatus(/Przywrócono: 2/, "plik nie został przywrócony przez aplikację");
+  try {
+    await requireStatus(/Przywrócono: 2/, "plik nie został przywrócony przez aplikację");
+  } catch (error) {
+    console.log("Stan po wyborze pliku:", await status());
+    console.log("Pola okna systemowego:", (await uiNodes()).filter(node => node.text || node["content-desc"]).map(node => [node.text, node["content-desc"], node["resource-id"]]).slice(0, 16));
+    throw error;
+  }
   const imported = await view.run("JSON.parse(localStorage.getItem(" + JSON.stringify(key) + "))");
   assert.deepEqual(imported.map(({ copiedAt, ...item }) => item), records);
   await retry(() => view.run('document.querySelector(".outbox-img")?.naturalWidth'), n => n === 1, "nie wyświetlono przywróconego zdjęcia");

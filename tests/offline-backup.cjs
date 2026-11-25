@@ -156,7 +156,7 @@ test("aplikacja czeka na wynik Androida i pokazuje anulowanie oraz gotowy zapis"
   const { page } = await view(browser, app.url, { items: [legacy] });
   await page.evaluate(() => {
     window.SebaOfflineBackup = {
-      postMessage(data) { window.testBackup = JSON.parse(data); },
+      postMessage(data) { window.testBackup = data === "open" ? data : JSON.parse(data); },
     };
   });
   await page.locator("#btn-outbox-export").click();
@@ -169,6 +169,13 @@ test("aplikacja czeka na wynik Androida i pokazuje anulowanie oraz gotowy zapis"
   await page.evaluate(() => window.SebaOfflineBackup.onmessage({ data: "ok" }));
   await status(page, "Kopia zapisana");
   assert.deepEqual(await queue(page), [legacy]);
+  await page.locator("#btn-outbox-import").click();
+  assert.equal(await page.locator("#btn-outbox-import").isDisabled(), true);
+  await page.evaluate(() => window.SebaOfflineBackup.onmessage({ data: "import:" + JSON.stringify([{
+    id: 8, text: "Wpis z Androida", createdAt: "25.11.2026 21:12", photo: null,
+  }]) }));
+  await status(page, "Przywrócono: 1");
+  assert.deepEqual((await queue(page)).map(item => item.id), [7, 8]);
 });
 
 if (process.env.BEFORE_ROOT && process.env.PROOF_DIR) {

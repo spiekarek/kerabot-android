@@ -47,10 +47,12 @@ import androidx.webkit.JavaScriptReplyProxy;
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
 import com.getcapacitor.BridgeActivity;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -66,13 +68,17 @@ public class MainActivity extends BridgeActivity {
     private ValueCallback<Uri[]> filePathCallback;
     private ActivityResultLauncher<Intent> fileChooserLauncher;
     private ActivityResultLauncher<String> createOfflineBackup;
+    private ActivityResultLauncher<String[]> openOfflineBackup;
     // Wszystkie wywołania tego stanu odbywają się na głównym wątku, także po odtworzeniu Activity.
     private static boolean offlineBackupInProgress;
     private JavaScriptReplyProxy offlineBackupReply;
+    private JavaScriptReplyProxy offlineRestoreReply;
     private Button[] navButtons = new Button[5];
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        openOfflineBackup = registerForActivityResult(
+                new ActivityResultContracts.OpenDocument(), this::readOfflineBackup);
         createOfflineBackup = registerForActivityResult(
                 new ActivityResultContracts.CreateDocument("application/json"),
                 this::writeOfflineBackup
@@ -143,6 +149,16 @@ public class MainActivity extends BridgeActivity {
                         reply.postMessage("error");
                         return;
                     }
+                    if ("open".equals(json)) {
+                        offlineBackupInProgress = true;
+                        offlineRestoreReply = reply;
+                        try {
+                            openOfflineBackup.launch(new String[]{"application/json", "application/octet-stream", "text/plain"});
+                        } catch (RuntimeException error) {
+                            finishOfflineRestore("error");
+                        }
+                        return;
+                    }
                     byte[] data = json.getBytes(StandardCharsets.UTF_8);
                     if (data.length > MAX_BACKUP_BYTES) {
                         reply.postMessage("error");
@@ -209,6 +225,42 @@ public class MainActivity extends BridgeActivity {
             if ("ok".equals(status)) message = "Kopia kolejki zapisana.";
             if ("cancelled".equals(status)) message = "Anulowano zapis kopii kolejki.";
             Toast.makeText(getApplicationContext(), message, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void readOfflineBackup(Uri selected) {
+        if (selected == null) {
+            finishOfflineRestore("cancelled");
+            return;
+        }
+        offlineBackupInProgress = true;
+        new Thread(() -> {
+            String result;
+            try (InputStream input = getContentResolver().openInputStream(selected);
+                 ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                if (input == null) throw new IOException();
+                byte[] buffer = new byte[8192];
+                for (int size; (size = input.read(buffer)) != -1;) {
+                    if (output.size() + size > MAX_BACKUP_BYTES) throw new IOException();
+                    output.write(buffer, 0, size);
+                }
+                result = "import:" + new String(output.toByteArray(), StandardCharsets.UTF_8);
+            } catch (IOException | RuntimeException error) {
+                result = "error";
+            }
+            String status = result;
+            runOnUiThread(() -> finishOfflineRestore(status));
+        }, "kerabot-offline-restore").start();
+    }
+
+    private void finishOfflineRestore(String status) {
+        JavaScriptReplyProxy reply = offlineRestoreReply;
+        offlineRestoreReply = null;
+        offlineBackupInProgress = false;
+        if (reply != null && !isDestroyed()) {
+            reply.postMessage(status);
+        } else if (!"cancelled".equals(status)) {
+            Toast.makeText(getApplicationContext(), "Otwórz ponownie plik kopii.", Toast.LENGTH_LONG).show();
         }
     }
 

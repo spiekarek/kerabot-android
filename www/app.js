@@ -136,6 +136,7 @@
   let pendingPhotoRead = 0;
   let copyingOutbox = false;
   let exportingOutbox = false;
+  let importingOutbox = false;
 
   function loadOutbox() {
     const items = JSON.parse(localStorage.getItem(OUTBOX_KEY) || "[]");
@@ -319,7 +320,7 @@
   });
 
   $("btn-outbox-export")?.addEventListener("click", (event) => {
-    if (exportingOutbox) return;
+    if (exportingOutbox || importingOutbox) return;
     const button = event.currentTarget;
     try {
       const items = loadOutbox().map(backupItem);
@@ -363,17 +364,53 @@
     }
   });
 
-  $("btn-outbox-import")?.addEventListener("click", () => $("outbox-import").click());
+  $("btn-outbox-import")?.addEventListener("click", (event) => {
+    if (exportingOutbox || importingOutbox) return;
+    const native = window.SebaOfflineBackup;
+    if (!native?.postMessage) {
+      $("outbox-import").click();
+      return;
+    }
+    const button = event.currentTarget;
+    importingOutbox = true;
+    button.disabled = true;
+    native.onmessage = ({ data }) => {
+      importingOutbox = false;
+      button.disabled = false;
+      if (typeof data === "string" && data.startsWith("import:")) {
+        restoreOutbox(data.slice(7));
+      } else {
+        setStatus("outbox-status", data === "cancelled"
+          ? "Anulowano odtwarzanie kolejki." : "Android nie odczytał pliku kopii.");
+      }
+    };
+    try {
+      native.postMessage("open");
+    } catch {
+      importingOutbox = false;
+      button.disabled = false;
+      setStatus("outbox-status", "Nie udało się otworzyć wyboru pliku.");
+    }
+  });
 
   $("outbox-import")?.addEventListener("change", async (event) => {
     const input = event.currentTarget;
     const file = input.files?.[0];
-    input.value = "";
     if (!file) return;
     try {
       if (file.size > MAX_BACKUP_BYTES) throw new Error("Plik kopii jest za duży.");
+      restoreOutbox(await file.text());
+    } catch (error) {
+      setStatus("outbox-status", error.name === "NotReadableError" ? "Nie udało się odczytać pliku kopii." : error.message);
+    } finally {
+      input.value = "";
+    }
+  });
+
+  function restoreOutbox(text) {
+    try {
       let backup;
-      try { backup = JSON.parse(await file.text()); } catch {
+      try { backup = JSON.parse(text); } catch {
         throw new Error("Ten plik nie jest poprawnym JSON.");
       }
       const records = Array.isArray(backup) ? backup : backup?.items;
@@ -395,7 +432,7 @@
     } catch (error) {
       setStatus("outbox-status", error.message);
     }
-  });
+  }
 
   // Ciagle dyktowanie PL do kolejki offline
   let outboxRec = null;

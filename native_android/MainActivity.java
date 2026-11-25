@@ -8,11 +8,15 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.AudioAttributes;
 import android.media.RingtoneManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
@@ -30,8 +34,32 @@ public class MainActivity extends BridgeActivity {
 
         WebView webView = getBridge().getWebView();
         if (webView != null) {
+            // Trwale logowanie i pamiec Offline (wzorzec MIT Capacitor CookieManager)
+            CookieManager cm = CookieManager.getInstance();
+            cm.setAcceptCookie(true);
+            cm.setAcceptThirdPartyCookies(webView, true);
+
+            WebSettings settings = webView.getSettings();
+            settings.setDomStorageEnabled(true);
+            settings.setDatabaseEnabled(true);
+            settings.setAllowFileAccess(true);
+            settings.setMediaPlaybackRequiresUserGesture(false);
+
             webView.addJavascriptInterface(new SebaAndroidBridge(this), "SebaAndroidBridge");
         }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        // Natychmiastowy zapis ciasteczek sesji na dysk telefonu (zero ponownego logowania!)
+        CookieManager.getInstance().flush();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        CookieManager.getInstance().flush();
     }
 
     private void createUrgentNotificationChannel() {
@@ -83,6 +111,23 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public String getDeviceInfo() {
             return Build.MANUFACTURER + " " + Build.MODEL + " (Android " + Build.VERSION.RELEASE + ")";
+        }
+
+        @JavascriptInterface
+        public boolean isOnline() {
+            try {
+                ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+                if (cm == null) return true;
+                NetworkInfo active = cm.getActiveNetworkInfo();
+                return active != null && active.isConnected();
+            } catch (Exception e) {
+                return true;
+            }
+        }
+
+        @JavascriptInterface
+        public void flushCookiesNow() {
+            CookieManager.getInstance().flush();
         }
 
         @JavascriptInterface

@@ -1,0 +1,27 @@
+{
+  "schema_standard": "AI_HUB_MODULE_TEMPLATE_V2",
+  "informacja_o_programie": {
+    "id": "nowy-modul-id",
+    "nazwa": "Nazwa nowego modułu / gry / programu",
+    "kategoria": "gry | narzedzia | system",
+    "aktualna_wersja": "1.0.0",
+    "build_code": 1,
+    "data_wydania": "YYYY-MM-DD HH:MM CET",
+    "autor": "Sebastian & Flota AI HUB",
+    "tryb_offline": true,
+    "link_glowny": "https://kordian.s-piekarek.workers.dev/next",
+    "repozytorium": "https://github.com/spiekarek/..."
+  },
+  "rejestr_aktualizacji": [
+    {
+      "wersja": "1.0.0",
+      "build_code": 1,
+      "data": "YYYY-MM-DD HH:MM CET",
+      "status_qa": "PASS",
+      "zmiany_pl": [
+        "Pierwsza wersja modułu zgodna z kanonem AI HUB.",
+        "Dodano obowiązkową sekcję Informacja o programie i Rejestr Aktualizacji."
+      ]
+    }
+  ]
+}

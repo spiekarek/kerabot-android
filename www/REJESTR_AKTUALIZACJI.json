@@ -1,0 +1,55 @@
+{
+  "program": {
+    "nazwa": "KeraBot AI HUB (Android)",
+    "id_pakietu": "pl.seba.kerabot",
+    "aktualna_wersja": "0.2.0",
+    "build_code": 4,
+    "data_wydania": "2026-11-25 13:35 CET",
+    "autor": "Sebastian & Flota AI HUB (Gemini 4 Neon / Claude / Codex / Wiktor)",
+    "architektura": "Offline-Online (Outbox Queue + Trwałe Ciasteczka CookieManager + Pełne Panele KeraBota wewnątrz apki)",
+    "repozytorium": "https://github.com/spiekarek/kerabot-android",
+    "link_pobrania": "https://github.com/spiekarek/kerabot-android/releases/latest/download/KeraBot-Seba-latest.apk"
+  },
+  "historia_wydan": [
+    {
+      "wersja": "0.2.0",
+      "build_code": 4,
+      "data": "2026-11-25 13:35 CET",
+      "status_qa": "PASS",
+      "zmiany_pl": [
+        "Wszystkie panele KeraBota (Pokój, JoaSeb, Live, Gry, Programy) działają teraz BEZPOŚREDNIO W ŚRODKU aplikacji — zero wyrzucania do Chrome!",
+        "Trwałe logowanie na Androidzie (CookieManager.flush przy onPause/onStop) — logujesz się raz.",
+        "Prawdziwy tryb Offline-Online (wzorzec Outbox): pisanie, dyktowanie i dodawanie zdjęć bez sieci do Kolejki Offline + automatyczne wysłanie po powrocie internetu.",
+        "Dodano wbudowany Rejestr Aktualizacji i kartę Informacji o programie oraz zaktualizowano Szablon Modułów."
+      ]
+    },
+    {
+      "wersja": "0.1.2",
+      "build_code": 3,
+      "data": "2026-11-25 09:56 CET",
+      "status_qa": "PASS",
+      "zmiany_pl": [
+        "Ciągłe dyktowanie głosowe PL (continuous=true + auto-wznowienie po pauzie).",
+        "Zamknięcie pakietu QA KeraBot Next (ciche odświeżanie tylko #chatMessages, widoczny 🎤 na 360–412 px, odblokowanie kliknięć nad #cmpText)."
+      ]
+    },
+    {
+      "wersja": "0.1.1",
+      "build_code": 2,
+      "data": "2026-11-24 23:42 CET",
+      "status_qa": "PASS",
+      "zmiany_pl": [
+        "Nowe motywy fioletowe: Fiolet Fusionote (#A855F7) + Fiolet & Złoto Snapo + Granat (przełącznik 1-klik)."
+      ]
+    },
+    {
+      "wersja": "0.1.0",
+      "build_code": 1,
+      "data": "2026-11-24 17:07 CET",
+      "status_qa": "PASS",
+      "zmiany_pl": [
+        "Pierwsza uniwersalna wersja na wszystkie urządzenia Android (Fold7, S24 Ultra, Vivo) + Centrum Aktualizacji + Fabryka APK w GitHub Actions."
+      ]
+    }
+  ]
+}

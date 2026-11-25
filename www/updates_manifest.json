@@ -1,18 +1,18 @@
 {
-  "schema_version": "1.0.0",
-  "updated_at": "2026-11-25T09:55:00+01:00",
+  "schema_version": "1.1.0",
+  "updated_at": "2026-11-25T13:35:00+01:00",
   "apk_latest": {
-    "version": "0.1.2",
-    "build_code": 3,
+    "version": "0.2.0",
+    "build_code": 4,
     "release_date": "2026-11-25",
-    "apk_filename": "KeraBot-Seba-v0.1.2.apk",
+    "apk_filename": "KeraBot-Seba-v0.2.0.apk",
     "download_url": "https://github.com/spiekarek/kerabot-android/releases/latest/download/KeraBot-Seba-latest.apk",
     "drive_folder": "G:\\Mój dysk\\AI HUB DRIVE\\PROJECTS\\KERABOT_ANDROID_APK\\DO_POBRANIA\\",
     "changelog_pl": [
-      "Naprawa ciągłego dyktowania głosowego PL (continuous=true + auto-wznowienie po pauzie) w aplikacji Android i w Pokoju KeraBota.",
-      "Pakiet QA KeraBot Next: ciche odświeżanie aktualizuje tylko listę wiadomości bez zrywania mikrofonu, widoczny przycisk 🎤 na 360–412 px i zamknięcie nakładki #kbInspector na telefonach.",
-      "Domyślny motyw Fiolet Fusionote (#A855F7) + Snapo + Granat z przełącznikiem 1-klik.",
-      "Układ adaptacyjny na wszystkie urządzenia Android (Galaxy Z Fold7, Galaxy S24 Ultra, Vivo X300 Ultra)."
+      "Pełne panele KeraBota bezpośrednio W ŚRODKU aplikacji (zero wyrzucania do Chrome!).",
+      "Trwałe zapamiętanie logowania (CookieManager.flush) — logujesz się tylko raz.",
+      "Tryb Offline-Online (Kolejka Outbox): notatki, dyktowanie i zdjęcia bez internetu wysyłają się po powrocie sieci.",
+      "Nowy Rejestr Aktualizacji, Informacja o programie i zaktualizowany Szablon Modułów."
     ]
   },
   "modules": [
@@ -20,19 +20,19 @@
       "id": "kerabot-web",
       "category": "system",
       "name": "KeraBot — Pokój i Centrum Życiowe",
-      "version": "2.5.0",
+      "version": "2.6.0",
       "status": "ONLINE",
-      "url": "https://kordian.s-piekarek.workers.dev/#pokoj",
-      "notes": "Główny pokój wieloagentowy + JoaSeb S43–S44 (L0–L3 Szybki Start) + Klocek #77 Radar Wiedzy."
+      "url": "https://kordian.s-piekarek.workers.dev/next#pokoj",
+      "notes": "Pełne panele (Start, Pokój, JoaSeb, Live, Gry, Programy) + naprawa dyktowania i cichego odświeżania."
     },
     {
       "id": "hybryda-v3-cebula",
       "category": "gry",
-      "name": "Hybryda v3 Cebula (Gotyx + AntyGot)",
-      "version": "3.0.0",
+      "name": "Hybryda v3.3 Cebula (Gotyx + AntyGot)",
+      "version": "3.3.0",
       "status": "QA_PASS",
-      "url": "https://kordian.s-piekarek.workers.dev/",
-      "notes": "Najnowsza hybryda E0–E3 gotowa 24.11 wieczorem."
+      "url": "https://kordian.s-piekarek.workers.dev/next#sebagames",
+      "notes": "Wersja v3.3 + kierunek 8 kierunków (oct) i materiały GLB."
     },
     {
       "id": "gotyx-classic-turbo",
@@ -40,17 +40,8 @@
       "name": "Gotyx Classic Turbo",
       "version": "1.2.0",
       "status": "QA_PASS",
-      "url": "https://kordian.s-piekarek.workers.dev/",
+      "url": "https://kordian.s-piekarek.workers.dev/next#sebagames",
       "notes": "Klasyczny układ, 60 FPS, 263 grafiki w cache, 3 checkpointy."
-    },
-    {
-      "id": "antygot",
-      "category": "gry",
-      "name": "AntyGot & AntyNext",
-      "version": "3.4.0",
-      "status": "QA_PASS",
-      "url": "https://kordian.s-piekarek.workers.dev/",
-      "notes": "Edytor HUD v1.2, Zaznacz poprawkę, telemetria P95."
     },
     {
       "id": "nowa-huta-3d",
@@ -58,7 +49,7 @@
       "name": "Nowa Huta 3D + Blender 5.3",
       "version": "1.1.0",
       "status": "QA_PASS",
-      "url": "https://kordian.s-piekarek.workers.dev/",
+      "url": "https://kordian.s-piekarek.workers.dev/next#sebagames",
       "notes": "MapLibre + OpenFreeMap OSM 3D bez kluczy API, dzień/noc."
     },
     {
@@ -67,7 +58,7 @@
       "name": "Seba Rozliczenia",
       "version": "2.4.0",
       "status": "QA_PASS",
-      "url": "https://kordian.s-piekarek.workers.dev/",
+      "url": "https://kordian.s-piekarek.workers.dev/next#sebaprogramy",
       "notes": "SebaCore 34/34 PASS, tryb Szef + Sprzedawca, dyktowanie PL, eksport Excel/Word/JSON."
     },
     {
@@ -76,17 +67,8 @@
       "name": "Mapa Inwestycji Radnego D18",
       "version": "1.1.0",
       "status": "QA_PASS",
-      "url": "https://kordian.s-piekarek.workers.dev/",
+      "url": "https://kordian.s-piekarek.workers.dev/next#sebaprogramy",
       "notes": "OSM + Satelita Nowa Huta, kalkulator ZDMK, pomiar m/m2."
-    },
-    {
-      "id": "radar-okazji",
-      "category": "narzedzia",
-      "name": "Seba Radar Okazji",
-      "version": "1.0.0",
-      "status": "QA_PASS",
-      "url": "https://kordian.s-piekarek.workers.dev/",
-      "notes": "Historia cen i szybkie sprawdzanie 5 sklepów 1 kliknięciem."
     }
   ]
 }

@@ -3,8 +3,66 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>KeraBot AI HUB — Aplikacja Android</title>
+  <title>KeraBot AI HUB — v0.2.0 (Offline-Online)</title>
   <link rel="stylesheet" href="styles.css" />
+  <style>
+    .kb-frame-wrap {
+      width: 100%;
+      height: calc(100vh - 188px);
+      min-height: 440px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: #0b0718;
+    }
+    .kb-frame-wrap iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+    .kb-quick-panels {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+    }
+    .kb-quick-panels button {
+      white-space: nowrap;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .kb-quick-panels button.active {
+      background: var(--btn-primary);
+      border-color: rgba(216,180,254,0.6);
+    }
+    .outbox-item {
+      padding: 12px;
+      border-radius: 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--warn);
+      margin-bottom: 8px;
+      font-size: 13.5px;
+    }
+    .outbox-item.sent { border-left-color: var(--accent-2); opacity: 0.78; }
+    .outbox-img { max-width: 120px; border-radius: 8px; margin-top: 6px; display: block; }
+    .release-card {
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      margin-bottom: 10px;
+    }
+  </style>
 </head>
 <body>
   <div class="app-shell">
@@ -13,20 +71,23 @@
         <div class="brand-logo">K</div>
         <div>
           <h1 class="brand-title">KeraBot AI HUB</h1>
-          <p class="brand-sub" id="device-mode-label">Uniwersalna aplikacja Android</p>
+          <p class="brand-sub" id="device-mode-label">Offline + Online · Wszystkie panele</p>
         </div>
       </div>
-      <span class="badge ok" id="app-version-badge">v0.1.2</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span class="badge ok" id="net-status-badge">🟢 Online</span>
+        <span class="badge" id="app-version-badge">v0.2.0</span>
+      </div>
     </header>
 
     <div class="layout">
-      <!-- Boczny panel (widoczny automatycznie na rozlozonym Galaxy Z Fold7 / tablecie) -->
+      <!-- Boczny panel (Fold7 rozlozony / tablet) -->
       <aside class="sidebar" aria-label="Nawigacja boczna">
-        <button class="nav-btn active" data-tab="start"><span class="ico">🏠</span><span>Start i KeraBot</span></button>
-        <button class="nav-btn" data-tab="updates"><span class="ico">🚀</span><span>Centrum Aktualizacji</span></button>
-        <button class="nav-btn" data-tab="voice"><span class="ico">🎤</span><span>Mikrofon i Głos</span></button>
-        <button class="nav-btn" data-tab="sounds"><span class="ico">🔔</span><span>Dźwięki i Alerty</span></button>
-        <button class="nav-btn" data-tab="templates"><span class="ico">🧩</span><span>Szablony Wydań</span></button>
+        <button class="nav-btn active" data-tab="kerabot"><span class="ico">💬</span><span>KeraBot (Wszystko)</span></button>
+        <button class="nav-btn" data-tab="offline"><span class="ico">📦</span><span>Kolejka Offline</span></button>
+        <button class="nav-btn" data-tab="updates"><span class="ico">🚀</span><span>Rejestr Aktualizacji</span></button>
+        <button class="nav-btn" data-tab="phone"><span class="ico">🔔</span><span>Telefon i Dźwięki</span></button>
+        <button class="nav-btn" data-tab="templates"><span class="ico">🧩</span><span>Szablon Modułów</span></button>
       </aside>
 
       <main class="main-content">
@@ -39,121 +100,128 @@
           <a class="btn success" style="width: auto;" id="update-banner-btn" href="#" target="_blank" rel="noopener">Pobierz i zainstaluj</a>
         </div>
 
-        <!-- ZAKLADKA 1: START -->
-        <section class="tab-panel active" id="tab-start">
-          <div class="card">
-            <h2>🏠 Centrum Sterowania Sebastiana</h2>
-            <p>Jedna uniwersalna aplikacja na wszystkie Twoje urządzenia z Androidem (Galaxy Z Fold7, Galaxy S24 Ultra, Vivo X300 Ultra i każdy kolejny telefon).</p>
-            <div class="btn-row">
-              <a class="btn primary" href="https://kordian.s-piekarek.workers.dev/#pokoj" target="_blank" rel="noopener">💬 Otwórz Pokój KeraBota (Live)</a>
-              <button class="btn success" id="btn-quick-check-updates">🚀 Sprawdź aktualizacje teraz</button>
-              <button class="btn warn" id="btn-quick-test-alarm">🔔 Wyślij testowy głośny alarm</button>
-              <button class="btn" id="btn-quick-open-sounds">⚙️ Ustawienia dźwięków w telefonie</button>
-            </div>
-            <div class="status-log" id="start-status">Gotowy do pracy. Wykryty układ ekranu aktualizuje się automatycznie (Fold7 dwupanelowo / klasyczny telefon 1 kolumna).</div>
+        <!-- ZAKLADKA 1: PELNY KERABOT BEZPOSREDNIO W SRODKU APLIKACJI -->
+        <section class="tab-panel active" id="tab-kerabot">
+          <div class="kb-quick-panels" id="kb-panel-switcher">
+            <button type="button" class="active" data-kb-url="https://kordian.s-piekarek.workers.dev/next#pokoj">💬 Pokój</button>
+            <button type="button" data-kb-url="https://kordian.s-piekarek.workers.dev/next#start">🏠 Start</button>
+            <button type="button" data-kb-url="https://kordian.s-piekarek.workers.dev/next#sebalive">🧭 Seba Live</button>
+            <button type="button" data-kb-url="https://kordian.s-piekarek.workers.dev/next#sebagames">🎮 SebaGry</button>
+            <button type="button" data-kb-url="https://kordian.s-piekarek.workers.dev/next#sebaprogramy">🧰 Programy</button>
+            <button type="button" data-kb-url="https://kordian.s-piekarek.workers.dev/next#studio">✨ Studio</button>
           </div>
-
-          <div class="card">
-            <h2>🎨 Kolor i Motyw Aplikacji (1 kliknięcie)</h2>
-            <p>Dobrane z Twoich inspiracji <strong>Fusionote (#A855F7)</strong> i <strong>Snapo</strong> — wybór zapisuje się automatycznie na telefonie.</p>
-            <div class="theme-pills" id="theme-pills">
-              <button class="theme-pill active" data-theme-pick="fusionote"><span class="dot" style="background:#a855f7;"></span>💜 Fiolet Fusionote</button>
-              <button class="theme-pill" data-theme-pick="snapo"><span class="dot" style="background:#f59e0b;"></span>🔮 Fiolet + Złoto Snapo</button>
-              <button class="theme-pill" data-theme-pick="granat"><span class="dot" style="background:#3b82f6;"></span>🔵 Ciemny Granat</button>
-            </div>
+          <div id="kb-offline-notice" class="card" style="display:none;border-color:#f59e0b;">
+            <h2>📡 Brak internetu — Tryb Offline aktywny</h2>
+            <p>Nie masz teraz zasięgu. Przejdź do zakładki <strong>📦 Kolejka Offline</strong> — podyktuj wiadomość lub dodaj zdjęcie, a aplikacja wyśle je automatycznie po powrocie sieci!</p>
+            <button type="button" class="btn warn" id="btn-go-offline-queue">📦 Otwórz Kolejkę Offline</button>
           </div>
-
-          <div class="grid-2">
-            <div class="card">
-              <h2>📱 Informacje o tym urządzeniu</h2>
-              <p id="device-info-text">Ładowanie danych urządzenia...</p>
-            </div>
-            <div class="card">
-              <h2>🛡️ Tryb bezpieczeństwa</h2>
-              <p>Aplikacja działa wyłącznie pod Twoją kontrolą. Żadne zmiany ustawień nie dzieją się w tle bez Twojego kliknięcia.</p>
-              <span class="badge ok">Piecza Sebastiana: AKTYWNA</span>
-            </div>
+          <div class="kb-frame-wrap" id="kb-frame-wrap">
+            <iframe id="kerabot-iframe" src="https://kordian.s-piekarek.workers.dev/next#pokoj" allow="microphone; camera; clipboard-read; clipboard-write" title="KeraBot AI HUB"></iframe>
           </div>
         </section>
 
-        <!-- ZAKLADKA 2: CENTRUM AKTUALIZACJI -->
-        <section class="tab-panel" id="tab-updates">
+        <!-- ZAKLADKA 2: KOLEJKA OFFLINE (OUTBOX PATTERN) -->
+        <section class="tab-panel" id="tab-offline">
           <div class="card">
-            <h2>🚀 Centrum Aktualizacji AI HUB, Gier i Narzędzi</h2>
-            <p>Jedno miejsce ze stanem wersji Twojej aplikacji Android (`.apk`), gier SebaGry oraz narzędzi biznesowych.</p>
+            <h2>📦 Kolejka Offline-Online (Notatki, Dyktowanie i Zdjęcia bez sieci)</h2>
+            <p>Zapisuj wiadomości i zdjęcia nawet bez internetu (w garażu, piwnicy, trasie). Wszystko zostaje bezpiecznie w pamięci telefonu i synchronizuje się po powrocie zasięgu.</p>
+            <textarea id="outbox-text" class="transcript-box" rows="3" placeholder="Wpisz lub podyktuj wiadomość do Pokoju / AI HUB…"></textarea>
+            <div class="btn-row" style="margin-top:10px;">
+              <button type="button" class="btn primary" id="btn-outbox-dictate">🎤 Dyktuj po polsku (Ciągle)</button>
+              <label class="btn" style="cursor:pointer;">📷 Dodaj zdjęcie (Offline)<input type="file" id="outbox-photo" accept="image/*" hidden /></label>
+              <button type="button" class="btn success" id="btn-outbox-save">💾 Zapisz do Kolejki</button>
+              <button type="button" class="btn warn" id="btn-outbox-sync">🔄 Synchronizuj kolejkę teraz</button>
+            </div>
+            <div class="status-log" id="outbox-status">Gotowy. Elementy zapisane offline nigdy nie giną.</div>
+          </div>
+          <div class="card">
+            <h2>📋 Oczekujące i wysłane z telefonu (<span id="outbox-count">0</span>)</h2>
+            <div id="outbox-list"></div>
+          </div>
+        </section>
+
+        <!-- ZAKLADKA 3: REJESTR AKTUALIZACJI & INFORMACJA O PROGRAMIE -->
+        <section class="tab-panel" id="tab-updates">
+          <div class="card" id="program-info-card">
+            <h2>ℹ️ Informacja o programie</h2>
+            <div id="program-info-body" style="font-size:13.5px;color:#cbd5e1;line-height:1.55;">Ładowanie informacji o programie…</div>
+          </div>
+
+          <div class="card">
+            <h2>🚀 Centrum &amp; Rejestr Aktualizacji</h2>
+            <p>Sprawdź czy jest nowsza wersja aplikacji `.apk` oraz zobacz pełną historię wydań i stan wszystkich modułów AI HUB.</p>
             <div class="btn-row" style="margin-bottom: 12px;">
-              <button class="btn primary" id="btn-refresh-manifest">🔄 Sprawdź nowe wersje w chmurze</button>
+              <button type="button" class="btn primary" id="btn-refresh-manifest">🔄 Sprawdź aktualizacje w chmurze</button>
               <a class="btn success" id="btn-download-latest-apk" href="#" target="_blank" rel="noopener">⬇️ Pobierz najnowsze APK</a>
             </div>
-            <div class="status-log" id="updates-status">Ładowanie manifestu aktualizacji...</div>
+            <div class="status-log" id="updates-status">Ładowanie rejestru aktualizacji…</div>
           </div>
 
           <div class="card">
-            <h2>📦 Co nowego w obecnej wersji APK</h2>
-            <ul id="apk-changelog-list" style="margin: 0; padding-left: 18px; color: #cbd5e1; font-size: 14px; line-height: 1.55;"></ul>
+            <h2>📜 Historia Wydań (Rejestr Aktualizacji)</h2>
+            <div id="release-history-list"></div>
           </div>
 
           <div class="card">
-            <h2>🎮 Gry SebaGry i Narzędzia (Manifest Live)</h2>
+            <h2>🎮 Moduły, Gry SebaGry i Narzędzia</h2>
             <div id="modules-list"></div>
           </div>
         </section>
 
-        <!-- ZAKLADKA 3: MIKROFON I GLOS -->
-        <section class="tab-panel" id="tab-voice">
+        <!-- ZAKLADKA 4: TELEFON, DZWIEKI, MIKROFON I MOTYWY -->
+        <section class="tab-panel" id="tab-phone">
           <div class="card">
-            <h2>🎤 Test Mikrofonu i Dyktowania po polsku</h2>
-            <p>Sprawdź uprawnienie mikrofonu na swoim telefonie oraz rozpoznawanie mowy po polsku (`pl-PL`).</p>
-            <div class="btn-row">
-              <button class="btn primary" id="btn-mic-test">🎙️ Uruchom test mikrofonu</button>
-              <button class="btn success" id="btn-speech-start">🗣️ Dyktuj po polsku (Start / Stop)</button>
-            </div>
-            <div class="meter-wrap"><div class="meter-bar" id="mic-meter-bar"></div></div>
-            <div class="status-log" id="voice-status">Kliknij „Uruchom test mikrofonu”, aby sprawdzić poziom głosu.</div>
-            <div style="margin-top: 12px;">
-              <div style="font-size: 13px; color: var(--muted); margin-bottom: 6px;">Rozpoznany tekst (dyktowanie PL):</div>
-              <div class="transcript-box" id="speech-output">Tutaj pojawi się tekst podyktowany do mikrofonu...</div>
+            <h2>🎨 Kolor i Motyw Aplikacji (1 kliknięcie)</h2>
+            <p>Dobrane z Twoich inspiracji <strong>Fusionote (#A855F7)</strong> i <strong>Snapo</strong> — zapisywane na stałe na telefonie.</p>
+            <div class="theme-pills" id="theme-pills">
+              <button type="button" class="theme-pill active" data-theme-pick="fusionote"><span class="dot" style="background:#a855f7;"></span>💜 Fiolet Fusionote</button>
+              <button type="button" class="theme-pill" data-theme-pick="snapo"><span class="dot" style="background:#f59e0b;"></span>🔮 Fiolet + Złoto Snapo</button>
+              <button type="button" class="theme-pill" data-theme-pick="granat"><span class="dot" style="background:#3b82f6;"></span>🔵 Ciemny Granat</button>
             </div>
           </div>
-        </section>
 
-        <!-- ZAKLADKA 4: DZWIEKI I ALERTY -->
-        <section class="tab-panel" id="tab-sounds">
           <div class="card">
             <h2>🔔 Głośne Powiadomienia AI HUB PILNE</h2>
-            <p>Aplikacja zakłada na każdym Androidzie własny, priorytetowy kanał powiadomień <strong>AI HUB PILNE</strong>, dzięki czemu możesz przypisać mu osobny, wyraźny dzwonek i odróżnić go od zwykłych reklam.</p>
             <div class="btn-row">
-              <button class="btn warn" id="btn-send-alarm">🔔 Wyślij testowy alarm AI HUB (za 2 sek.)</button>
-              <button class="btn primary" id="btn-open-channel-settings">⚙️ Otwórz ustawienia dźwięku AI HUB</button>
-              <button class="btn" id="btn-open-system-sounds">🔊 Otwórz ogólne dźwięki Androida</button>
-              <button class="btn" id="btn-open-accessibility">♿ Ułatwienia dostępu (pod Etap 3)</button>
+              <button type="button" class="btn warn" id="btn-send-alarm">🔔 Wyślij testowy głośny alarm</button>
+              <button type="button" class="btn primary" id="btn-open-channel-settings">⚙️ Ustawienia dźwięku AI HUB</button>
+              <button type="button" class="btn" id="btn-open-system-sounds">🔊 Ogólne dźwięki Androida</button>
+              <button type="button" class="btn" id="btn-open-accessibility">♿ Ułatwienia dostępu (Etap 3)</button>
             </div>
-            <div class="status-log" id="sounds-status">Gotowy do testu kanału powiadomień AI HUB PILNE.</div>
+            <div class="status-log" id="sounds-status">Kanał AI HUB PILNE gotowy na każdym telefonie Android.</div>
+          </div>
+
+          <div class="card">
+            <h2>🎤 Test Mikrofonu i Urządzenia</h2>
+            <p id="device-info-text">Ładowanie danych urządzenia…</p>
+            <button type="button" class="btn primary" id="btn-mic-test">🎙️ Uruchom test mikrofonu</button>
+            <div class="meter-wrap"><div class="meter-bar" id="mic-meter-bar"></div></div>
+            <div class="status-log" id="voice-status">Kliknij, aby sprawdzić poziom mikrofonu.</div>
           </div>
         </section>
 
-        <!-- ZAKLADKA 5: SZABLONY WYDAN -->
+        <!-- ZAKLADKA 5: SZABLON MODULOW Z INFORMACJA O PROGRAMIE I REJESTREM AKTUALIZACJI -->
         <section class="tab-panel" id="tab-templates">
           <div class="card">
-            <h2>🧩 Gotowe Szablony Wydań (dla agentów i Sebastiana)</h2>
-            <p>Gotowy szablon nowego wpisu do <code>updates_manifest.json</code> — skopiuj jednym kliknięciem przy wydawaniu nowej wersji gry, modułu lub APK.</p>
+            <h2>🧩 Szablon Modułu AI HUB (z Informacją o Programie i Rejestrem Aktualizacji)</h2>
+            <p>Standardowy szablon dla każdego nowego modułu, gry i narzędzia w ekosystemie Sebastiana — obowiązkowo zawiera kartę <strong>Informacja o programie</strong> oraz <strong>Rejestr aktualizacji</strong>.</p>
             <div class="code-box" id="template-json-box"></div>
             <div style="margin-top: 10px;">
-              <button class="btn primary" id="btn-copy-template">📋 Kopiuj szablon wydania JSON</button>
+              <button type="button" class="btn primary" id="btn-copy-template">📋 Kopiuj szablon modułu JSON</button>
             </div>
-            <div class="status-log" id="template-status">Szablon gotowy do skopiowania.</div>
+            <div class="status-log" id="template-status">Szablon gotowy do skopiowania dla agentów i projektów.</div>
           </div>
         </section>
       </main>
     </div>
 
-    <!-- Dolny pasek (klasyczny telefon: S24 Ultra, Vivo X300 Ultra, zlozony Fold7) -->
+    <!-- Dolny pasek (S24 Ultra, Vivo X300 Ultra, zlozony Fold7) -->
     <nav class="bottom-nav" aria-label="Nawigacja dolna">
-      <button class="nav-btn active" data-tab="start"><span class="ico">🏠</span><span>Start</span></button>
-      <button class="nav-btn" data-tab="updates"><span class="ico">🚀</span><span>Aktualiz.</span></button>
-      <button class="nav-btn" data-tab="voice"><span class="ico">🎤</span><span>Mikrofon</span></button>
-      <button class="nav-btn" data-tab="sounds"><span class="ico">🔔</span><span>Dźwięki</span></button>
-      <button class="nav-btn" data-tab="templates"><span class="ico">🧩</span><span>Szablony</span></button>
+      <button type="button" class="nav-btn active" data-tab="kerabot"><span class="ico">💬</span><span>KeraBot</span></button>
+      <button type="button" class="nav-btn" data-tab="offline"><span class="ico">📦</span><span>Offline</span></button>
+      <button type="button" class="nav-btn" data-tab="updates"><span class="ico">🚀</span><span>Rejestr</span></button>
+      <button type="button" class="nav-btn" data-tab="phone"><span class="ico">🔔</span><span>Telefon</span></button>
+      <button type="button" class="nav-btn" data-tab="templates"><span class="ico">🧩</span><span>Szablon</span></button>
     </nav>
   </div>
 

@@ -1,11 +1,11 @@
 {
   "name": "kerabot-android",
-  "version": "0.2.0",
-  "description": "Uniwersalna aplikacja Android KeraBot AI HUB v0.2.0 (Offline-Online, pełne panele w środku, Rejestr Aktualizacji)",
+  "version": "0.3.0",
+  "description": "Uniwersalna aplikacja Android KeraBot AI HUB v0.3.0 (Natywne logowanie Cloudflare Access bez iframe, staly klucz podpisu APK, Offline-Online)",
   "private": true,
   "scripts": {
     "cap:sync": "npx cap sync android",
-    "verify": "node -c www/app.js && node -e \"['www/updates_manifest.json','www/REJESTR_AKTUALIZACJI.json','templates/module_manifest_template.json'].forEach(f=>JSON.parse(require('fs').readFileSync(f,'utf8'))); console.log('ALL JSON OK')\""
+    "verify": "node -c www/app.js && node -c scripts/apply_native_bridge.js && node -e \"['www/updates_manifest.json','www/REJESTR_AKTUALIZACJI.json','templates/module_manifest_template.json'].forEach(f=>JSON.parse(require('fs').readFileSync(f,'utf8'))); console.log('ALL JSON OK')\""
   },
   "dependencies": {
     "@capacitor/android": "^6.2.0",

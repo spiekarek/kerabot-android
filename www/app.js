@@ -1,8 +1,8 @@
 (function () {
   "use strict";
 
-  const CURRENT_APP_VERSION = "0.2.0";
-  const CURRENT_BUILD_CODE = 4;
+  const CURRENT_APP_VERSION = "0.3.0";
+  const CURRENT_BUILD_CODE = 5;
   const REMOTE_MANIFEST_URL =
     "https://raw.githubusercontent.com/spiekarek/kerabot-android/main/www/updates_manifest.json";
   const REMOTE_REGISTRY_URL =
@@ -10,6 +10,7 @@
   const OUTBOX_KEY = "kerabot_offline_outbox_v1";
 
   const MODULE_TEMPLATE = {
+    schema_standard: "AI_HUB_MODULE_TEMPLATE_V2",
     informacja_o_programie: {
       id: "nowy-modul-id",
       nazwa: "Nazwa modułu / gry / narzędzia",
@@ -23,6 +24,7 @@
     rejestr_aktualizacji: [
       {
         wersja: "1.0.0",
+        build_code: 1,
         data: "2026-11-25",
         status_qa: "PASS",
         zmiany_pl: [
@@ -50,33 +52,57 @@
       .replace(/"/g, "&quot;");
   }
 
-  // 1. Zakladki
+  // 1. Zakladki lokalnego panelu (dostepne rowniez dla natywnego paska Androida przez window.SebaSwitchLocalTab)
   function switchTab(tabId) {
+    const target = ["updates", "offline", "phone", "templates"].includes(tabId) ? tabId : "updates";
     document.querySelectorAll(".tab-panel").forEach((p) => {
-      p.classList.toggle("active", p.id === "tab-" + tabId);
+      p.classList.toggle("active", p.id === "tab-" + target);
     });
-    document.querySelectorAll(".nav-btn").forEach((b) => {
-      b.classList.toggle("active", b.dataset.tab === tabId);
+    document.querySelectorAll(".nav-btn, .subtab-btn").forEach((b) => {
+      b.classList.toggle("active", b.dataset.tab === target);
     });
   }
+  window.SebaSwitchLocalTab = switchTab;
 
-  document.querySelectorAll(".nav-btn").forEach((btn) => {
+  document.querySelectorAll(".nav-btn, .subtab-btn").forEach((btn) => {
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
 
-  // 2. Przelacznik paneli KeraBota W SRODKU APLIKACJI (zero wyrzucania do Chrome!)
-  const kbIframe = $("kerabot-iframe");
-  document.querySelectorAll("[data-kb-url]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll("[data-kb-url]").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      if (kbIframe) kbIframe.src = btn.dataset.kbUrl;
-    });
+  // 2. Otwieranie pelnych paneli KeraBota w natywnym oknie top-level WebView (ZERO iframe, ZERO ERR_BLOCKED_BY_RESPONSE!)
+  function openKeraBotNative(url) {
+    if (typeof window.SebaAndroidBridge !== "undefined" && window.SebaAndroidBridge.openKeraBotUrl) {
+      window.SebaAndroidBridge.openKeraBotUrl(url);
+      return;
+    }
+    window.open(url, "_blank", "noopener");
+  }
+
+  document.querySelectorAll("[data-native-kb]").forEach((btn) => {
+    btn.addEventListener("click", () => openKeraBotNative(btn.dataset.nativeKb));
   });
 
-  $("btn-go-offline-queue")?.addEventListener("click", () => switchTab("offline"));
+  $("btn-force-cf-login")?.addEventListener("click", () => {
+    if (typeof window.SebaAndroidBridge !== "undefined" && window.SebaAndroidBridge.forceReloadKeraBot) {
+      window.SebaAndroidBridge.forceReloadKeraBot("https://kordian.s-piekarek.workers.dev/next#pokoj");
+      return;
+    }
+    openKeraBotNative("https://kordian.s-piekarek.workers.dev/next#pokoj");
+  });
 
-  // 3. Status Online / Offline + automatyczna synchronizacja Kolejki Outbox
+  function hookApkDownloadButton(el) {
+    if (!el) return;
+    el.addEventListener("click", (ev) => {
+      const href = el.getAttribute("href");
+      if (href && href !== "#" && typeof window.SebaAndroidBridge !== "undefined" && window.SebaAndroidBridge.openExternalUrl) {
+        ev.preventDefault();
+        window.SebaAndroidBridge.openExternalUrl(href);
+      }
+    });
+  }
+  hookApkDownloadButton($("btn-download-latest-apk"));
+  hookApkDownloadButton($("update-banner-btn"));
+
+  // 3. Status Online / Offline
   function checkIsOnline() {
     if (typeof window.SebaAndroidBridge !== "undefined" && window.SebaAndroidBridge.isOnline) {
       try { return !!window.SebaAndroidBridge.isOnline(); } catch (e) {}
@@ -91,17 +117,11 @@
       badge.textContent = online ? "🟢 Online" : "🟠 Offline";
       badge.className = "badge " + (online ? "ok" : "warn");
     }
-    const notice = $("kb-offline-notice");
-    const frameWrap = $("kb-frame-wrap");
-    if (notice && frameWrap) {
-      notice.style.display = online ? "none" : "block";
-      frameWrap.style.display = online ? "block" : "none";
-    }
   }
 
   window.addEventListener("online", () => {
     updateNetworkUi();
-    setStatus("outbox-status", "🟢 Internet wrócił! Możesz wysłać kolejkę offline 1 kliknięciem.");
+    setStatus("outbox-status", "🟢 Internet wrócił! Możesz zsynchronizować kolejkę 1 kliknięciem.");
   });
   window.addEventListener("offline", () => {
     updateNetworkUi();
@@ -130,7 +150,7 @@
     }
     list.innerHTML = items
       .map((it) => {
-        const badge = it.sent ? "✅ Wysłane / Skopiowane" : "⏳ Czeka na internet";
+        const badge = it.sent ? "✅ Skopiowane do Pokoju" : "⏳ Czeka w pamięci telefonu";
         const imgHtml = it.photo ? '<img class="outbox-img" src="' + it.photo + '" alt="Zdjęcie offline" />' : "";
         return (
           '<div class="outbox-item ' + (it.sent ? "sent" : "") + '">' +
@@ -152,7 +172,7 @@
     const reader = new FileReader();
     reader.onload = () => {
       pendingPhotoDataUrl = String(reader.result || "");
-      setStatus("outbox-status", "📷 Zdjęcie załączone do kolejki offline — kliknij „Zapisz do Kolejki”.");
+      setStatus("outbox-status", "📷 Zdjęcie załączone — kliknij „Zapisz do Kolejki”.");
     };
     reader.readAsDataURL(file);
   });
@@ -185,17 +205,14 @@
     }
     const items = loadOutbox();
     const pending = items.filter((x) => !x.sent);
-    if (!pending.length) {
-      setStatus("outbox-status", "✅ Wszystkie pozycje z kolejki są już zsynchronizowane.");
-      return;
+    if (pending.length) {
+      const joined = pending.map((p) => `[${p.createdAt}] ${p.text}`).join("\n\n");
+      try { await navigator.clipboard.writeText(joined); } catch (e) {}
+      items.forEach((x) => { x.sent = true; });
+      saveOutbox(items);
+      renderOutbox();
     }
-    const joined = pending.map((p) => `[${p.createdAt}] ${p.text}`).join("\n\n");
-    try { await navigator.clipboard.writeText(joined); } catch (e) {}
-    items.forEach((x) => { x.sent = true; });
-    saveOutbox(items);
-    renderOutbox();
-    setStatus("outbox-status", "✅ Skopiowano " + pending.length + " zaległych wpisów do schowka i otwieram Pokój KeraBota — wklej i wyślij!");
-    switchTab("kerabot");
+    openKeraBotNative("https://kordian.s-piekarek.workers.dev/next#pokoj");
   });
 
   // Ciagle dyktowanie PL do kolejki offline
@@ -257,9 +274,9 @@
     if (infoBody) {
       infoBody.innerHTML =
         "<strong>Nazwa:</strong> " + esc(p.nazwa || "KeraBot AI HUB") + "<br>" +
-        "<strong>Wersja:</strong> v" + esc(CURRENT_APP_VERSION) + " (build " + CURRENT_BUILD_CODE + ")<br>" +
+        "<strong>Wersja:</strong> v" + esc(CURRENT_APP_VERSION) + " (build " + CURRENT_BUILD_CODE + " · stały klucz PKCS12)<br>" +
         "<strong>Data wydania:</strong> " + esc(p.data_wydania || "2026-11-25") + "<br>" +
-        "<strong>Architektura:</strong> " + esc(p.architektura || "Offline-Online") + "<br>" +
+        "<strong>Architektura:</strong> " + esc(p.architektura || "Natywny Dual-WebView + Offline") + "<br>" +
         "<strong>Autor:</strong> " + esc(p.autor || "Sebastian & Flota AI HUB");
     }
     const histEl = $("release-history-list");
@@ -292,7 +309,7 @@
       if (hasNewerApk) {
         banner.classList.add("visible");
         $("update-banner-title").textContent = "🚀 Dostępna nowa wersja APK: v" + apk.version;
-        $("update-banner-desc").textContent = "Masz: v" + CURRENT_APP_VERSION + " → Nowa: v" + apk.version;
+        $("update-banner-desc").textContent = "Masz: v" + CURRENT_APP_VERSION + " → Nowa: v" + apk.version + " (podmienia bez usuwania!)";
         $("update-banner-btn").href = apk.download_url || "#";
       } else {
         banner.classList.remove("visible");
@@ -311,17 +328,14 @@
             '    <span class="badge ok">v' + esc(m.version) + " · " + esc(m.status) + "</span>" +
             "  </div>" +
             '  <div class="module-notes">' + esc(m.notes) + "</div>" +
-            '  <button type="button" class="btn" data-open-in-app="' + esc(m.url) + '">Otwórz w środku aplikacji</button>' +
+            '  <button type="button" class="btn primary" data-open-in-app="' + esc(m.url) + '">Otwórz w aplikacji</button>' +
             "</div>"
           );
         })
         .join("");
 
       modWrap.querySelectorAll("[data-open-in-app]").forEach((b) => {
-        b.addEventListener("click", () => {
-          if (kbIframe) kbIframe.src = b.dataset.openInApp;
-          switchTab("kerabot");
-        });
+        b.addEventListener("click", () => openKeraBotNative(b.dataset.openInApp));
       });
     }
 
@@ -360,20 +374,20 @@
   function updateDeviceInfo() {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const isDualPane = w >= 720;
     const hasBridge = typeof window.SebaAndroidBridge !== "undefined";
+    if (hasBridge) document.body.classList.add("has-native-bar");
     let nativeModel = "Przeglądarka / WebView";
     if (hasBridge && window.SebaAndroidBridge.getDeviceInfo) {
       try { nativeModel = window.SebaAndroidBridge.getDeviceInfo(); } catch (e) {}
     }
     const label = $("device-mode-label");
-    if (label) label.textContent = isDualPane ? "Tryb Fold/Tablet (" + w + "×" + h + ")" : "Offline+Online (" + w + "×" + h + ")";
+    if (label) label.textContent = "Natywne Cloudflare + Offline (" + w + "×" + h + ")";
     const infoEl = $("device-info-text");
     if (infoEl) {
       infoEl.innerHTML =
         "<strong>Urządzenie:</strong> " + esc(nativeModel) + "<br>" +
         "<strong>Ekran:</strong> " + w + " × " + h + " px<br>" +
-        "<strong>Mostek Android + Trwałe logowanie:</strong> " + (hasBridge ? "✅ AKTYWNY" : "ℹ️ Podgląd WWW");
+        "<strong>Natywny Dual-WebView + Stały podpis APK:</strong> " + (hasBridge ? "✅ AKTYWNY" : "ℹ️ Podgląd WWW");
     }
   }
   window.addEventListener("resize", updateDeviceInfo);
@@ -442,7 +456,7 @@
     }
   });
 
-  // 7. Motywy kolorystyczne + Szablon Modulow
+  // 7. Motywy + Szablon
   function applyTheme(name) {
     const valid = ["fusionote", "snapo", "granat"].includes(name) ? name : "fusionote";
     document.documentElement.setAttribute("data-theme", valid);
@@ -472,4 +486,8 @@
   updateNetworkUi();
   renderOutbox();
   loadUpdatesAndRegistry(true);
+
+  // Obsluga hasha na starcie (#offline / #updates / #phone / #templates)
+  const startHash = (window.location.hash || "").replace(/^#/, "").trim();
+  if (startHash) switchTab(startHash);
 })();

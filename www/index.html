@@ -3,34 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>KeraBot AI HUB — v0.2.0 (Offline-Online)</title>
+  <title>KeraBot AI HUB — v0.3.0 (Cloudflare Native + Offline)</title>
   <link rel="stylesheet" href="styles.css" />
   <style>
-    .kb-frame-wrap {
-      width: 100%;
-      height: calc(100vh - 188px);
-      min-height: 440px;
-      border-radius: 14px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-      background: #0b0718;
-    }
-    .kb-frame-wrap iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-      display: block;
-    }
-    .kb-quick-panels {
+    body.has-native-bar .layout { padding-bottom: 12px !important; }
+    body.has-native-bar .bottom-nav { display: none !important; }
+    .local-subtabs {
       display: flex;
       gap: 6px;
       overflow-x: auto;
       padding-bottom: 8px;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
     }
-    .kb-quick-panels button {
+    .local-subtabs button {
       white-space: nowrap;
-      padding: 8px 12px;
+      padding: 8px 13px;
       border-radius: 999px;
       border: 1px solid var(--border);
       background: var(--panel-2);
@@ -39,7 +26,7 @@
       font-weight: 700;
       cursor: pointer;
     }
-    .kb-quick-panels button.active {
+    .local-subtabs button.active {
       background: var(--btn-primary);
       border-color: rgba(216,180,254,0.6);
     }
@@ -71,77 +58,56 @@
         <div class="brand-logo">K</div>
         <div>
           <h1 class="brand-title">KeraBot AI HUB</h1>
-          <p class="brand-sub" id="device-mode-label">Offline + Online · Wszystkie panele</p>
+          <p class="brand-sub" id="device-mode-label">Panel Offline &amp; Rejestr Aktualizacji</p>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
         <span class="badge ok" id="net-status-badge">🟢 Online</span>
-        <span class="badge" id="app-version-badge">v0.2.0</span>
+        <span class="badge" id="app-version-badge">v0.3.0</span>
       </div>
     </header>
 
     <div class="layout">
-      <!-- Boczny panel (Fold7 rozlozony / tablet) -->
       <aside class="sidebar" aria-label="Nawigacja boczna">
-        <button class="nav-btn active" data-tab="kerabot"><span class="ico">💬</span><span>KeraBot (Wszystko)</span></button>
-        <button class="nav-btn" data-tab="offline"><span class="ico">📦</span><span>Kolejka Offline</span></button>
-        <button class="nav-btn" data-tab="updates"><span class="ico">🚀</span><span>Rejestr Aktualizacji</span></button>
-        <button class="nav-btn" data-tab="phone"><span class="ico">🔔</span><span>Telefon i Dźwięki</span></button>
-        <button class="nav-btn" data-tab="templates"><span class="ico">🧩</span><span>Szablon Modułów</span></button>
+        <button type="button" class="nav-btn active" data-tab="updates"><span class="ico">🚀</span><span>Rejestr i Aktualizacje</span></button>
+        <button type="button" class="nav-btn" data-tab="offline"><span class="ico">📦</span><span>Kolejka Offline</span></button>
+        <button type="button" class="nav-btn" data-tab="phone"><span class="ico">🔔</span><span>Telefon i Dźwięki</span></button>
+        <button type="button" class="nav-btn" data-tab="templates"><span class="ico">🧩</span><span>Szablon Modułów</span></button>
       </aside>
 
       <main class="main-content">
+        <!-- Gorny pasek zakladek wewnatrz panelu Apka/Offline -->
+        <div class="local-subtabs">
+          <button type="button" class="subtab-btn active" data-tab="updates">🚀 Rejestr &amp; Aktualizacje</button>
+          <button type="button" class="subtab-btn" data-tab="offline">📦 Kolejka Offline</button>
+          <button type="button" class="subtab-btn" data-tab="phone">🔔 Dźwięki &amp; Kolory</button>
+          <button type="button" class="subtab-btn" data-tab="templates">🧩 Szablon Modułów</button>
+        </div>
+
         <!-- Baner nowej wersji APK -->
         <div class="update-banner" id="update-banner">
           <div>
             <strong id="update-banner-title">🚀 Dostępna nowa aktualizacja!</strong>
-            <div style="font-size: 13px; color: #cbd5e1;" id="update-banner-desc">Kliknij, aby pobrać i wgrać nowszą wersję.</div>
+            <div style="font-size: 13px; color: #cbd5e1;" id="update-banner-desc">Kliknij, aby pobrać i podmienić aplikację (bez utraty logowania!).</div>
           </div>
-          <a class="btn success" style="width: auto;" id="update-banner-btn" href="#" target="_blank" rel="noopener">Pobierz i zainstaluj</a>
+          <a class="btn success" style="width: auto;" id="update-banner-btn" href="#" target="_blank" rel="noopener">Pobierz i aktualizuj</a>
         </div>
 
-        <!-- ZAKLADKA 1: PELNY KERABOT BEZPOSREDNIO W SRODKU APLIKACJI -->
-        <section class="tab-panel active" id="tab-kerabot">
-          <div class="kb-quick-panels" id="kb-panel-switcher">
-            <button type="button" class="active" data-kb-url="https://kordian.s-piekarek.workers.dev/next#pokoj">💬 Pokój</button>
-            <button type="button" data-kb-url="https://kordian.s-piekarek.workers.dev/next#start">🏠 Start</button>
-            <button type="button" data-kb-url="https://kordian.s-piekarek.workers.dev/next#sebalive">🧭 Seba Live</button>
-            <button type="button" data-kb-url="https://kordian.s-piekarek.workers.dev/next#sebagames">🎮 SebaGry</button>
-            <button type="button" data-kb-url="https://kordian.s-piekarek.workers.dev/next#sebaprogramy">🧰 Programy</button>
-            <button type="button" data-kb-url="https://kordian.s-piekarek.workers.dev/next#studio">✨ Studio</button>
+        <!-- Szybki przelacznik do pelnych paneli KeraBota (otwiera natywne okno bez iframe!) -->
+        <div class="card">
+          <h2>💬 Pełne Panele KeraBota (Natywne okno z Cloudflare Access)</h2>
+          <p>Logujesz się w Cloudflare Access <strong>tylko raz</strong> bezpośrednio w aplikacji (zero błędu blokady ramki i zero wyrzucania do Chrome!).</p>
+          <div class="btn-row">
+            <button type="button" class="btn primary" data-native-kb="https://kordian.s-piekarek.workers.dev/next#pokoj">💬 Otwórz Pokój KeraBota</button>
+            <button type="button" class="btn" data-native-kb="https://kordian.s-piekarek.workers.dev/next#start">🏠 Otwórz Panel Start</button>
+            <button type="button" class="btn" data-native-kb="https://kordian.s-piekarek.workers.dev/next#sebalive">🧭 Otwórz Seba Live</button>
+            <button type="button" class="btn" data-native-kb="https://kordian.s-piekarek.workers.dev/next#sebagames">🎮 Otwórz SebaGry</button>
+            <button type="button" class="btn warn" id="btn-force-cf-login">🔐 Odśwież logowanie Cloudflare</button>
           </div>
-          <div id="kb-offline-notice" class="card" style="display:none;border-color:#f59e0b;">
-            <h2>📡 Brak internetu — Tryb Offline aktywny</h2>
-            <p>Nie masz teraz zasięgu. Przejdź do zakładki <strong>📦 Kolejka Offline</strong> — podyktuj wiadomość lub dodaj zdjęcie, a aplikacja wyśle je automatycznie po powrocie sieci!</p>
-            <button type="button" class="btn warn" id="btn-go-offline-queue">📦 Otwórz Kolejkę Offline</button>
-          </div>
-          <div class="kb-frame-wrap" id="kb-frame-wrap">
-            <iframe id="kerabot-iframe" src="https://kordian.s-piekarek.workers.dev/next#pokoj" allow="microphone; camera; clipboard-read; clipboard-write" title="KeraBot AI HUB"></iframe>
-          </div>
-        </section>
+        </div>
 
-        <!-- ZAKLADKA 2: KOLEJKA OFFLINE (OUTBOX PATTERN) -->
-        <section class="tab-panel" id="tab-offline">
-          <div class="card">
-            <h2>📦 Kolejka Offline-Online (Notatki, Dyktowanie i Zdjęcia bez sieci)</h2>
-            <p>Zapisuj wiadomości i zdjęcia nawet bez internetu (w garażu, piwnicy, trasie). Wszystko zostaje bezpiecznie w pamięci telefonu i synchronizuje się po powrocie zasięgu.</p>
-            <textarea id="outbox-text" class="transcript-box" rows="3" placeholder="Wpisz lub podyktuj wiadomość do Pokoju / AI HUB…"></textarea>
-            <div class="btn-row" style="margin-top:10px;">
-              <button type="button" class="btn primary" id="btn-outbox-dictate">🎤 Dyktuj po polsku (Ciągle)</button>
-              <label class="btn" style="cursor:pointer;">📷 Dodaj zdjęcie (Offline)<input type="file" id="outbox-photo" accept="image/*" hidden /></label>
-              <button type="button" class="btn success" id="btn-outbox-save">💾 Zapisz do Kolejki</button>
-              <button type="button" class="btn warn" id="btn-outbox-sync">🔄 Synchronizuj kolejkę teraz</button>
-            </div>
-            <div class="status-log" id="outbox-status">Gotowy. Elementy zapisane offline nigdy nie giną.</div>
-          </div>
-          <div class="card">
-            <h2>📋 Oczekujące i wysłane z telefonu (<span id="outbox-count">0</span>)</h2>
-            <div id="outbox-list"></div>
-          </div>
-        </section>
-
-        <!-- ZAKLADKA 3: REJESTR AKTUALIZACJI & INFORMACJA O PROGRAMIE -->
-        <section class="tab-panel" id="tab-updates">
+        <!-- ZAKLADKA: REJESTR AKTUALIZACJI & INFORMACJA O PROGRAMIE -->
+        <section class="tab-panel active" id="tab-updates">
           <div class="card" id="program-info-card">
             <h2>ℹ️ Informacja o programie</h2>
             <div id="program-info-body" style="font-size:13.5px;color:#cbd5e1;line-height:1.55;">Ładowanie informacji o programie…</div>
@@ -149,7 +115,7 @@
 
           <div class="card">
             <h2>🚀 Centrum &amp; Rejestr Aktualizacji</h2>
-            <p>Sprawdź czy jest nowsza wersja aplikacji `.apk` oraz zobacz pełną historię wydań i stan wszystkich modułów AI HUB.</p>
+            <p>Od wersji <strong>v0.3.0</strong> aplikacja posiada stały podpis kryptograficzny — każda kolejna aktualizacja nadpisuje się 1 kliknięciem <strong>bez odinstalowywania starej wersji</strong>!</p>
             <div class="btn-row" style="margin-bottom: 12px;">
               <button type="button" class="btn primary" id="btn-refresh-manifest">🔄 Sprawdź aktualizacje w chmurze</button>
               <a class="btn success" id="btn-download-latest-apk" href="#" target="_blank" rel="noopener">⬇️ Pobierz najnowsze APK</a>
@@ -168,11 +134,30 @@
           </div>
         </section>
 
-        <!-- ZAKLADKA 4: TELEFON, DZWIEKI, MIKROFON I MOTYWY -->
+        <!-- ZAKLADKA: KOLEJKA OFFLINE -->
+        <section class="tab-panel" id="tab-offline">
+          <div class="card">
+            <h2>📦 Kolejka Offline-Online (Notatki, Dyktowanie i Zdjęcia bez sieci)</h2>
+            <p>Gdy nie masz zasięgu, zapisuj tutaj wiadomości i zdjęcia. Wszystko zostaje bezpiecznie w pamięci telefonu.</p>
+            <textarea id="outbox-text" class="transcript-box" rows="3" placeholder="Wpisz lub podyktuj wiadomość do Pokoju / AI HUB…"></textarea>
+            <div class="btn-row" style="margin-top:10px;">
+              <button type="button" class="btn primary" id="btn-outbox-dictate">🎤 Dyktuj po polsku (Ciągle)</button>
+              <label class="btn" style="cursor:pointer;">📷 Dodaj zdjęcie (Offline)<input type="file" id="outbox-photo" accept="image/*" hidden /></label>
+              <button type="button" class="btn success" id="btn-outbox-save">💾 Zapisz do Kolejki</button>
+              <button type="button" class="btn warn" id="btn-outbox-sync">🔄 Skopiuj kolejkę i otwórz Pokój</button>
+            </div>
+            <div class="status-log" id="outbox-status">Gotowy. Elementy zapisane offline nigdy nie giną.</div>
+          </div>
+          <div class="card">
+            <h2>📋 Zapisane na telefonie (<span id="outbox-count">0</span>)</h2>
+            <div id="outbox-list"></div>
+          </div>
+        </section>
+
+        <!-- ZAKLADKA: TELEFON, DZWIEKI, MIKROFON I MOTYWY -->
         <section class="tab-panel" id="tab-phone">
           <div class="card">
-            <h2>🎨 Kolor i Motyw Aplikacji (1 kliknięcie)</h2>
-            <p>Dobrane z Twoich inspiracji <strong>Fusionote (#A855F7)</strong> i <strong>Snapo</strong> — zapisywane na stałe na telefonie.</p>
+            <h2>🎨 Kolor i Motyw Aplikacji</h2>
             <div class="theme-pills" id="theme-pills">
               <button type="button" class="theme-pill active" data-theme-pick="fusionote"><span class="dot" style="background:#a855f7;"></span>💜 Fiolet Fusionote</button>
               <button type="button" class="theme-pill" data-theme-pick="snapo"><span class="dot" style="background:#f59e0b;"></span>🔮 Fiolet + Złoto Snapo</button>
@@ -200,26 +185,23 @@
           </div>
         </section>
 
-        <!-- ZAKLADKA 5: SZABLON MODULOW Z INFORMACJA O PROGRAMIE I REJESTREM AKTUALIZACJI -->
+        <!-- ZAKLADKA: SZABLON MODULOW -->
         <section class="tab-panel" id="tab-templates">
           <div class="card">
-            <h2>🧩 Szablon Modułu AI HUB (z Informacją o Programie i Rejestrem Aktualizacji)</h2>
-            <p>Standardowy szablon dla każdego nowego modułu, gry i narzędzia w ekosystemie Sebastiana — obowiązkowo zawiera kartę <strong>Informacja o programie</strong> oraz <strong>Rejestr aktualizacji</strong>.</p>
+            <h2>🧩 Szablon Modułu AI HUB v2 (z Informacją o Programie i Rejestrem Aktualizacji)</h2>
             <div class="code-box" id="template-json-box"></div>
             <div style="margin-top: 10px;">
               <button type="button" class="btn primary" id="btn-copy-template">📋 Kopiuj szablon modułu JSON</button>
             </div>
-            <div class="status-log" id="template-status">Szablon gotowy do skopiowania dla agentów i projektów.</div>
+            <div class="status-log" id="template-status">Szablon gotowy do skopiowania.</div>
           </div>
         </section>
       </main>
     </div>
 
-    <!-- Dolny pasek (S24 Ultra, Vivo X300 Ultra, zlozony Fold7) -->
-    <nav class="bottom-nav" aria-label="Nawigacja dolna">
-      <button type="button" class="nav-btn active" data-tab="kerabot"><span class="ico">💬</span><span>KeraBot</span></button>
+    <nav class="bottom-nav" aria-label="Nawigacja dolna (tryb WWW)">
+      <button type="button" class="nav-btn active" data-tab="updates"><span class="ico">🚀</span><span>Rejestr</span></button>
       <button type="button" class="nav-btn" data-tab="offline"><span class="ico">📦</span><span>Offline</span></button>
-      <button type="button" class="nav-btn" data-tab="updates"><span class="ico">🚀</span><span>Rejestr</span></button>
       <button type="button" class="nav-btn" data-tab="phone"><span class="ico">🔔</span><span>Telefon</span></button>
       <button type="button" class="nav-btn" data-tab="templates"><span class="ico">🧩</span><span>Szablon</span></button>
     </nav>

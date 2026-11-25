@@ -29,15 +29,32 @@ jobs:
       - name: Zainstaluj zaleznosci i wygeneruj natywny projekt Android
         run: |
           npm install --no-audit --no-fund
+          npm run verify
           if [ ! -d "android" ]; then npx cap add android; fi
-          node scripts/apply_native_bridge.js
           npx cap sync android
+          node scripts/apply_native_bridge.js
 
-      - name: Zbuduj uniwersalny plik APK (Debug / Testowy)
+      - name: Zbuduj uniwersalny plik APK ze stalym kluczem kerabot-fixed.p12
         working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
+
+      - name: Zweryfikuj certyfikat podpisu APK oraz versionCode przed publikacja
+        run: |
+          APK_FILE="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$APK_FILE"
+          echo "=== Rozmiar zbudowanego APK ==="
+          ls -lh "$APK_FILE"
+          echo "=== Weryfikacja certyfikatu podpisu APK (CN=KeraBot AI HUB, O=Seba) ==="
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)
+          "$APKSIGNER" verify --verbose --print-certs "$APK_FILE" | tee /tmp/apk_cert.txt
+          grep -q "KeraBot AI HUB" /tmp/apk_cert.txt
+          echo "=== Weryfikacja versionCode w AndroidManifest skompilowanego APK ==="
+          AAPT2=$(find "$ANDROID_HOME/build-tools" -name aapt2 | sort -V | tail -n 1)
+          "$AAPT2" dump badging "$APK_FILE" | head -n 5 | tee /tmp/apk_badging.txt
+          grep -q "versionCode='5'" /tmp/apk_badging.txt
+          grep -q "versionName='0.3.0'" /tmp/apk_badging.txt
 
       - name: Przygotuj gotowe pliki KeraBot-Seba-latest.apk oraz wersjonowany APK
         run: |
@@ -63,7 +80,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: "KeraBot AI HUB Android (Najnowsze APK)"
-          body: "Automatycznie zbudowana uniwersalna aplikacja Android (Fold7, S24 Ultra, Vivo X300 Ultra i kazdy Android). Kliknij ponizej KeraBot-Seba-latest.apk aby pobrac na telefon."
+          name: "KeraBot AI HUB Android v0.3.0 (Natywne Cloudflare Access + Stały Podpis Aktualizacji)"
+          body: "Zbudowana i automatycznie zweryfikowana aplikacja Android v0.3.0 (buildCode=5, stały klucz PKCS12 CN=KeraBot AI HUB Seba). Natywne logowanie Cloudflare Access w głównym oknie (zero błędu ERR_BLOCKED_BY_RESPONSE) oraz nadpisywanie kolejnych aktualizacji bez odinstalowywania aplikacji."
           files: release_out/*.apk
           make_latest: true

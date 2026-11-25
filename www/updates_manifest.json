@@ -1,18 +1,18 @@
 {
-  "schema_version": "1.1.0",
-  "updated_at": "2026-11-25T13:35:00+01:00",
+  "schema_version": "1.2.0",
+  "updated_at": "2026-11-25T16:20:00+01:00",
   "apk_latest": {
-    "version": "0.2.0",
-    "build_code": 4,
+    "version": "0.3.0",
+    "build_code": 5,
     "release_date": "2026-11-25",
-    "apk_filename": "KeraBot-Seba-v0.2.0.apk",
+    "apk_filename": "KeraBot-Seba-v0.3.0.apk",
     "download_url": "https://github.com/spiekarek/kerabot-android/releases/latest/download/KeraBot-Seba-latest.apk",
     "drive_folder": "G:\\Mój dysk\\AI HUB DRIVE\\PROJECTS\\KERABOT_ANDROID_APK\\DO_POBRANIA\\",
     "changelog_pl": [
-      "Pełne panele KeraBota bezpośrednio W ŚRODKU aplikacji (zero wyrzucania do Chrome!).",
-      "Trwałe zapamiętanie logowania (CookieManager.flush) — logujesz się tylko raz.",
-      "Tryb Offline-Online (Kolejka Outbox): notatki, dyktowanie i zdjęcia bez internetu wysyłają się po powrocie sieci.",
-      "Nowy Rejestr Aktualizacji, Informacja o programie i zaktualizowany Szablon Modułów."
+      "NAPRAWIONO LOGOWANIE CLOUDFLARE ACCESS (brak ERR_BLOCKED_BY_RESPONSE): usunięto iframe, KeraBot i Cloudflare Access otwierają się w natywnym głównym oknie WebView w środku aplikacji!",
+      "NAPRAWIONO PODMIANĘ APK PRZY AKTUALIZACJI: wdrożono stały klucz podpisywania (kerabot-fixed.p12) i rosnący versionCode (5) — od v0.3.0 w górę każda kolejna aktualizacja nadpisuje aplikację BEZ odinstalowywania i BEZ utraty logowania!",
+      "Natywny dolny pasek Androida (Pokój | Live | Gry | Offline | Apka) działa zarówno na ekranie logowania Cloudflare, w Pokoju, jak i bez internetu.",
+      "Obsługa natywnego mikrofonu i dodawania zdjęć z galerii/aparatu bezpośrednio wewnątrz Pokoju KeraBota."
     ]
   },
   "modules": [
@@ -23,7 +23,7 @@
       "version": "2.6.0",
       "status": "ONLINE",
       "url": "https://kordian.s-piekarek.workers.dev/next#pokoj",
-      "notes": "Pełne panele (Start, Pokój, JoaSeb, Live, Gry, Programy) + naprawa dyktowania i cichego odświeżania."
+      "notes": "Pełne panele (Start, Pokój, JoaSeb, Live, Gry, Programy) z natywnym logowaniem Cloudflare Access."
     },
     {
       "id": "hybryda-v3-cebula",
@@ -44,15 +44,6 @@
       "notes": "Klasyczny układ, 60 FPS, 263 grafiki w cache, 3 checkpointy."
     },
     {
-      "id": "nowa-huta-3d",
-      "category": "gry",
-      "name": "Nowa Huta 3D + Blender 5.3",
-      "version": "1.1.0",
-      "status": "QA_PASS",
-      "url": "https://kordian.s-piekarek.workers.dev/next#sebagames",
-      "notes": "MapLibre + OpenFreeMap OSM 3D bez kluczy API, dzień/noc."
-    },
-    {
       "id": "seba-rozliczenia",
       "category": "narzedzia",
       "name": "Seba Rozliczenia",
@@ -60,15 +51,6 @@
       "status": "QA_PASS",
       "url": "https://kordian.s-piekarek.workers.dev/next#sebaprogramy",
       "notes": "SebaCore 34/34 PASS, tryb Szef + Sprzedawca, dyktowanie PL, eksport Excel/Word/JSON."
-    },
-    {
-      "id": "mapa-radnego-d18",
-      "category": "narzedzia",
-      "name": "Mapa Inwestycji Radnego D18",
-      "version": "1.1.0",
-      "status": "QA_PASS",
-      "url": "https://kordian.s-piekarek.workers.dev/next#sebaprogramy",
-      "notes": "OSM + Satelita Nowa Huta, kalkulator ZDMK, pomiar m/m2."
     }
   ]
 }

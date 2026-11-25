@@ -6,6 +6,9 @@
     "androidScheme": "https",
     "allowNavigation": [
       "*.workers.dev",
+      "*.cloudflareaccess.com",
+      "accounts.google.com",
+      "*.google.com",
       "*.github.io",
       "github.com",
       "raw.githubusercontent.com"
@@ -13,7 +16,7 @@
   },
   "plugins": {
     "LocalNotifications": {
-      "iconColor": "#2563EB"
+      "iconColor": "#A855F7"
     }
   }
 }

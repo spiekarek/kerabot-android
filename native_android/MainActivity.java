@@ -17,6 +17,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.util.AtomicFile;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -35,26 +36,47 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
+import androidx.webkit.JavaScriptReplyProxy;
+import androidx.webkit.WebViewCompat;
+import androidx.webkit.WebViewFeature;
 import com.getcapacitor.BridgeActivity;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 
 public class MainActivity extends BridgeActivity {
     public static final String CHANNEL_ID = "AI_HUB_PILNE";
+    private static final int MAX_BACKUP_BYTES = 16 * 1024 * 1024;
+    private static final String LOCAL_SHELL_ORIGIN = "https://localhost";
     private static final String KERABOT_BASE_URL = "https://kordian.s-piekarek.workers.dev/next";
 
     private WebView kerabotWebView;
     private boolean showingRemoteKeraBot = false;
     private ValueCallback<Uri[]> filePathCallback;
     private ActivityResultLauncher<Intent> fileChooserLauncher;
+    private ActivityResultLauncher<String> createOfflineBackup;
+    // Wszystkie wywołania tego stanu odbywają się na głównym wątku, także po odtworzeniu Activity.
+    private static boolean offlineBackupInProgress;
+    private JavaScriptReplyProxy offlineBackupReply;
     private Button[] navButtons = new Button[5];
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        createOfflineBackup = registerForActivityResult(
+                new ActivityResultContracts.CreateDocument("application/json"),
+                this::writeOfflineBackup
+        );
         fileChooserLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
@@ -84,6 +106,7 @@ public class MainActivity extends BridgeActivity {
         WebView localWebView = getBridge().getWebView();
         if (localWebView != null) {
             configurePersistentWebView(localWebView);
+            registerOfflineBackup(localWebView);
             localWebView.addJavascriptInterface(new SebaAndroidBridge(this), "SebaAndroidBridge");
             setupDualWebViewShell(localWebView);
         }
@@ -107,6 +130,85 @@ public class MainActivity extends BridgeActivity {
             openRemoteKeraBot(KERABOT_BASE_URL + "#pokoj", 0, false);
         } else {
             switchToLocalTab("offline", 3);
+        }
+    }
+
+    private void registerOfflineBackup(WebView localWebView) {
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) return;
+        WebViewCompat.addWebMessageListener(localWebView, "SebaOfflineBackup",
+                Collections.singleton(LOCAL_SHELL_ORIGIN), (view, message, origin, isMainFrame, reply) -> {
+                    if (!isMainFrame || !LOCAL_SHELL_ORIGIN.equals(origin.toString())) return;
+                    String json = message.getData();
+                    if (offlineBackupInProgress || json == null || json.length() > MAX_BACKUP_BYTES) {
+                        reply.postMessage("error");
+                        return;
+                    }
+                    byte[] data = json.getBytes(StandardCharsets.UTF_8);
+                    if (data.length > MAX_BACKUP_BYTES) {
+                        reply.postMessage("error");
+                        return;
+                    }
+                    offlineBackupInProgress = true;
+                    offlineBackupReply = reply;
+                    try {
+                        stageOfflineBackup(data);
+                        createOfflineBackup.launch("kerabot-kolejka.json");
+                    } catch (IOException | RuntimeException error) {
+                        finishOfflineBackup("error");
+                    }
+                });
+    }
+
+    private AtomicFile offlineBackupFile() {
+        return new AtomicFile(new File(getNoBackupFilesDir(), "kerabot-kolejka-tymczasowa.json"));
+    }
+
+    private void stageOfflineBackup(byte[] data) throws IOException {
+        AtomicFile file = offlineBackupFile();
+        FileOutputStream stream = file.startWrite();
+        try {
+            stream.write(data);
+            file.finishWrite(stream);
+        } catch (IOException | RuntimeException error) {
+            file.failWrite(stream);
+            throw error;
+        }
+    }
+
+    private void writeOfflineBackup(Uri destination) {
+        if (destination == null) {
+            finishOfflineBackup("cancelled");
+            return;
+        }
+        offlineBackupInProgress = true;
+        new Thread(() -> {
+            String result = "error";
+            try (FileInputStream input = offlineBackupFile().openRead();
+                 OutputStream output = getContentResolver().openOutputStream(destination, "w")) {
+                if (output == null) throw new IOException();
+                byte[] buffer = new byte[8192];
+                for (int size; (size = input.read(buffer)) != -1;) output.write(buffer, 0, size);
+                result = "ok";
+            } catch (IOException | RuntimeException error) {
+                result = "error";
+            }
+            String status = result;
+            runOnUiThread(() -> finishOfflineBackup(status));
+        }, "kerabot-offline-backup").start();
+    }
+
+    private void finishOfflineBackup(String status) {
+        offlineBackupFile().delete();
+        JavaScriptReplyProxy reply = offlineBackupReply;
+        offlineBackupInProgress = false;
+        offlineBackupReply = null;
+        if (reply != null && !isDestroyed()) {
+            reply.postMessage(status);
+        } else {
+            String message = "Android nie zapisał kopii kolejki.";
+            if ("ok".equals(status)) message = "Kopia kolejki zapisana.";
+            if ("cancelled".equals(status)) message = "Anulowano zapis kopii kolejki.";
+            Toast.makeText(getApplicationContext(), message, Toast.LENGTH_LONG).show();
         }
     }
 

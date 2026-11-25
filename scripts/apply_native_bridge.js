@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..");
+const preview = process.argv.includes("--preview");
 const javaTarget = path.join(
   root,
   "android",
@@ -21,11 +22,15 @@ const manifestPath = path.join(root, "android", "app", "src", "main", "AndroidMa
 const appGradlePath = path.join(root, "android", "app", "build.gradle");
 const updatesManifestPath = path.join(root, "www", "updates_manifest.json");
 
+if (preview && (!fs.existsSync(appGradlePath) || fs.readFileSync(appGradlePath, "utf8").includes("kerabot-fixed.p12"))) {
+  throw new Error("Tryb --preview wymaga świeżego projektu Android bez konfiguracji klucza wydania.");
+}
+
 if (!fs.existsSync(javaSrc)) {
   console.error("BLAD: Brak pliku native_android/MainActivity.java");
   process.exit(1);
 }
-if (!fs.existsSync(keystoreSrc)) {
+if (!preview && !fs.existsSync(keystoreSrc)) {
   console.error("BLAD: Brak stalego klucza podpisu signing/kerabot-fixed.p12");
   process.exit(1);
 }
@@ -33,8 +38,8 @@ if (!fs.existsSync(keystoreSrc)) {
 if (fs.existsSync(path.join(root, "android", "app"))) {
   fs.mkdirSync(path.dirname(javaTarget), { recursive: true });
   fs.copyFileSync(javaSrc, javaTarget);
-  fs.copyFileSync(keystoreSrc, keystoreTarget);
-  console.log("Wstrzyknieto MainActivity.java oraz skopiowano kerabot-fixed.p12 do android/app/.");
+  if (!preview) fs.copyFileSync(keystoreSrc, keystoreTarget);
+  console.log("Podpięto MainActivity.java.");
 }
 
 if (fs.existsSync(manifestPath)) {
@@ -66,7 +71,17 @@ if (fs.existsSync(appGradlePath) && fs.existsSync(updatesManifestPath)) {
   gradle = gradle.replace(/versionCode\s+\d+/, "versionCode " + vCode);
   gradle = gradle.replace(/versionName\s+"[^"]*"/, 'versionName "' + vName + '"');
 
-  if (!gradle.includes("kerabot-fixed.p12")) {
+  const webkit = '    implementation "androidx.webkit:webkit:1.9.0"';
+  if (!gradle.includes("androidx.webkit:webkit:")) {
+    gradle = gradle.replace(/(^dependencies\s*\{)/m, "$1\n" + webkit);
+  }
+  if (preview) {
+    const suffix = 'applicationIdSuffix ".kolejkaqa"';
+    if (!gradle.includes(suffix)) {
+      gradle = gradle.replace(/(^    buildTypes\s*\{)/m, "$1\n        debug { " + suffix + " }");
+      if (!gradle.includes(suffix)) throw new Error("Nie ustawiono osobnego identyfikatora kompilacji testowej.");
+    }
+  } else if (!gradle.includes("kerabot-fixed.p12")) {
     const signingBlock = `
     signingConfigs {
         debug {
@@ -84,5 +99,9 @@ if (fs.existsSync(appGradlePath) && fs.existsSync(updatesManifestPath)) {
   }
 
   fs.writeFileSync(appGradlePath, gradle, "utf8");
-  console.log("Skonfigurowano staly klucz podpisywania kerabot-fixed.p12 oraz versionCode=" + vCode + " (" + vName + ") w build.gradle!");
+  if (preview) {
+    console.log("Kompilacja testowa: pl.seba.kerabot.kolejkaqa, standardowy podpis debug.");
+  } else {
+    console.log("Skonfigurowano versionCode=" + vCode + " (" + vName + ") i ustawienia podpisu wydania.");
+  }
 }

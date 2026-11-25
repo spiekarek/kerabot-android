@@ -1,8 +1,8 @@
 (function () {
   "use strict";
 
-  const CURRENT_APP_VERSION = "0.1.1";
-  const CURRENT_BUILD_CODE = 2;
+  const CURRENT_APP_VERSION = "0.1.2";
+  const CURRENT_BUILD_CODE = 3;
   const REMOTE_MANIFEST_URL =
     "https://raw.githubusercontent.com/spiekarek/kerabot-android/main/www/updates_manifest.json";
 

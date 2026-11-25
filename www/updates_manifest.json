@@ -1,19 +1,18 @@
 {
   "schema_version": "1.0.0",
-  "updated_at": "2026-11-24T23:42:00+01:00",
+  "updated_at": "2026-11-25T09:55:00+01:00",
   "apk_latest": {
-    "version": "0.1.1",
-    "build_code": 2,
-    "release_date": "2026-11-24",
-    "apk_filename": "KeraBot-Seba-v0.1.1.apk",
+    "version": "0.1.2",
+    "build_code": 3,
+    "release_date": "2026-11-25",
+    "apk_filename": "KeraBot-Seba-v0.1.2.apk",
     "download_url": "https://github.com/spiekarek/kerabot-android/releases/latest/download/KeraBot-Seba-latest.apk",
     "drive_folder": "G:\\Mój dysk\\AI HUB DRIVE\\PROJECTS\\KERABOT_ANDROID_APK\\DO_POBRANIA\\",
     "changelog_pl": [
-      "Nowy domyślny motyw Fiolet Fusionote (#A855F7 + gradient róż-fiolet-błękit) oraz motyw Fiolet + Złoto Snapo i klasyczny Granat.",
-      "Przełącznik kolorów motywu w 1 kliknięciu (zapisywany w pamięci telefonu).",
-      "Dodano wieczorne nowości AI HUB: JoaSeb S43–S44 (L0–L3), Hybryda v3 Cebula (Gotyx + AntyGot) oraz Klocek #77 Radar Wiedzy.",
-      "Układ adaptacyjny na wszystkie urządzenia: dwupanelowy na rozłożonym Fold7, jednokolumnowy na S24 Ultra i Vivo X300 Ultra.",
-      "Natywny kanał powiadomień AI HUB PILNE, test mikrofonu PL i uniwersalne skróty ustawień Androida."
+      "Naprawa ciągłego dyktowania głosowego PL (continuous=true + auto-wznowienie po pauzie) w aplikacji Android i w Pokoju KeraBota.",
+      "Pakiet QA KeraBot Next: ciche odświeżanie aktualizuje tylko listę wiadomości bez zrywania mikrofonu, widoczny przycisk 🎤 na 360–412 px i zamknięcie nakładki #kbInspector na telefonach.",
+      "Domyślny motyw Fiolet Fusionote (#A855F7) + Snapo + Granat z przełącznikiem 1-klik.",
+      "Układ adaptacyjny na wszystkie urządzenia Android (Galaxy Z Fold7, Galaxy S24 Ultra, Vivo X300 Ultra)."
     ]
   },
   "modules": [

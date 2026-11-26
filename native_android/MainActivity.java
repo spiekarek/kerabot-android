@@ -451,18 +451,17 @@ public class MainActivity extends BridgeActivity {
             showingRemoteKeraBot = true;
             kerabotWebView.setVisibility(View.VISIBLE);
             String cur = kerabotWebView.getUrl();
+            Uri target = Uri.parse(targetUrl);
             if (forceReload || cur == null || cur.isEmpty() || "about:blank".equals(cur)) {
                 kerabotWebView.loadUrl(targetUrl);
             } else if (cur.contains("cloudflareaccess.com")) {
                 // Zachowaj formularz 6-cyfrowego kodu PIN przy powrocie z Gmaila!
-            } else if (cur.startsWith(KERABOT_BASE_URL)) {
-                int hashPos = targetUrl.indexOf('#');
-                if (hashPos >= 0) {
-                    String hash = targetUrl.substring(hashPos);
-                    kerabotWebView.evaluateJavascript("window.location.hash = '" + hash + "';", null);
-                } else {
-                    kerabotWebView.loadUrl(targetUrl);
-                }
+            } else if (targetUrl.startsWith(KERABOT_BASE_URL + "#")
+                    && KERABOT_BASE_URL.equals(Uri.parse(cur).buildUpon().fragment(null).build().toString())) {
+                String hash = JSONObject.quote("#" + target.getEncodedFragment());
+                kerabotWebView.evaluateJavascript(
+                        "if(location.hash===" + hash + ") window.dispatchEvent(new Event('hashchange'));"
+                        + "else location.hash=" + hash + ";", null);
             } else {
                 kerabotWebView.loadUrl(targetUrl);
             }
@@ -576,7 +575,12 @@ public class MainActivity extends BridgeActivity {
 
         @JavascriptInterface
         public void openKeraBotUrl(String url) {
-            openRemoteKeraBot(url != null ? url : (KERABOT_BASE_URL + "#pokoj"), 0, false);
+            String target = url != null ? url : KERABOT_BASE_URL + "#pokoj";
+            int navIdx = -1;
+            if (target.equals(KERABOT_BASE_URL + "#pokoj")) navIdx = 0;
+            else if (target.equals(KERABOT_BASE_URL + "#sebalive")) navIdx = 1;
+            else if (target.equals(KERABOT_BASE_URL + "#sebagames")) navIdx = 2;
+            openRemoteKeraBot(target, navIdx, false);
         }
 
         @JavascriptInterface

@@ -44,6 +44,24 @@
       "notes": "Klasyczny układ, 60 FPS, 263 grafiki w cache, 3 checkpointy."
     },
     {
+      "id": "papierowy-samolot",
+      "category": "gry",
+      "name": "Papierowy Samolot",
+      "version": "1.0",
+      "status": "ONLINE",
+      "url": "https://kordian.s-piekarek.workers.dev/gry/papierowy_samolot/",
+      "notes": "Lot nad Krakowem, trzy modele samolotu, prądy wznoszące i rekord dystansu."
+    },
+    {
+      "id": "taxi-krakow-pro",
+      "category": "narzedzia",
+      "name": "Taxi Kraków Pro",
+      "version": "1.0",
+      "status": "ONLINE",
+      "url": "https://kordian.s-piekarek.workers.dev/gry/taxi_krakow_kalkulator/",
+      "notes": "Kalkulator opłacalności kursu po prowizji i paliwie."
+    },
+    {
       "id": "seba-rozliczenia",
       "category": "narzedzia",
       "name": "Seba Rozliczenia",

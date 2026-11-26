@@ -2,24 +2,36 @@
   "program": {
     "nazwa": "KeraBot AI HUB (Android)",
     "id_pakietu": "pl.seba.kerabot",
-    "aktualna_wersja": "0.3.0",
-    "build_code": 5,
-    "data_wydania": "2026-11-25 16:20 CET",
-    "autor": "Sebastian & Flota AI HUB (Gemini 4 Carbon / Claude / Codex / Wiktor)",
-    "architektura": "Natywny Dual-WebView (Cloudflare Access bez iframe + Trwałe Ciasteczka + Stały Podpis PKCS12 + Kolejka Offline Outbox)",
+    "aktualna_wersja": "0.4.0",
+    "build_code": 6,
+    "data_wydania": "2026-11-26 05:20 CET",
+    "autor": "Sebastian & Flota AI HUB (Antigravity / Claude / Codex / Wiktor)",
+    "architektura": "Natywny Dual-WebView + Android Share Target (Inbox Zrzutów) + Stały Podpis PKCS12 + Standard CSS Fold 7",
     "repozytorium": "https://github.com/spiekarek/kerabot-android",
     "link_pobrania": "https://github.com/spiekarek/kerabot-android/releases/latest/download/KeraBot-Seba-latest.apk"
   },
   "historia_wydan": [
     {
-      "wersja": "0.3.0",
-      "build_code": 5,
-      "data": "2026-11-25 16:20 CET",
+      "wersja": "0.4.0",
+      "build_code": 6,
+      "data": "2026-11-26 05:20 CET",
       "status_qa": "PASS",
       "zmiany_pl": [
-        "Naprawa błędu ERR_BLOCKED_BY_RESPONSE przy logowaniu Cloudflare Access: całkowite usunięcie iframe na rzecz natywnego głównego okna WebView z czystym User-Agentem Chrome Mobile.",
-        "Stały klucz podpisywania APK (kerabot-fixed.p12) i automatyczny versionCode=5 w Gradle — od v0.3.0 kolejne aktualizacje nadpisują aplikację bez usuwania starej wersji!",
-        "Natywny dolny pasek Androida (Pokój | Live | Gry | Offline | Apka) + obsługa mikrofonu i aparatu/galerii wewnątrz Pokoju."
+        "Natywny Android Share Target (ACTION_SEND / ACTION_SEND_MULTIPLE): udostępnianie 1–10 zrzutów ekranu lub tekstu z dowolnej aplikacji na telefonie prosto do Inboxa KeraBota.",
+        "Rozbudowany Inbox Zrzutów & Kolejka Offline: wybór kategorii (Pomysł/Gra, Błąd/Zrzut, Grafika, Firma, Inne), filtr kategorii, pełnoekranowy podgląd zrzutów (lupa) oraz szybkie usuwanie i kopiowanie do Pokoju.",
+        "Standard CSS Fold 7 (100dvh, env(safe-area-inset-*)) — jawne zapożyczenie wzorca z Katalogu 14 (Fala 9, FEED 2026-11-26 05:12).",
+        "Pierwsza aktualizacja nadpisująca v0.3.0 na miejscu (buildCode 5 -> 6, ten sam klucz PKCS12 CN=KeraBot AI HUB) bez odinstalowywania aplikacji."
+      ]
+    },
+    {
+      "wersja": "0.3.0",
+      "build_code": 5,
+      "data": "2026-11-25 16:39 CET",
+      "status_qa": "PASS",
+      "zmiany_pl": [
+        "Naprawa błędu ERR_BLOCKED_BY_RESPONSE przy logowaniu Cloudflare Access: całkowite usunięcie iframe na rzecz natywnego głównego okna WebView z polską instrukcją na ekranie logowania i ochroną kodu PIN.",
+        "Stały klucz podpisywania APK (kerabot-fixed.p12) i automatyczny versionCode=5 w Gradle.",
+        "Natywny dolny pasek Androida + obsługa mikrofonu i aparatu/galerii wewnątrz Pokoju."
       ]
     },
     {
@@ -28,7 +40,7 @@
       "data": "2026-11-25 13:35 CET",
       "status_qa": "REPLACED_BY_0_3_0",
       "zmiany_pl": [
-        "Dodano Kolejkę Offline (Outbox), Rejestr Aktualizacji i Szablon Modułów v2 (wykryto blokadę iframe przez Cloudflare Access — naprawione w v0.3.0)."
+        "Dodano Kolejkę Offline (Outbox), Rejestr Aktualizacji i Szablon Modułów v2."
       ]
     },
     {
@@ -38,15 +50,6 @@
       "status_qa": "PASS",
       "zmiany_pl": [
         "Ciągłe dyktowanie głosowe PL (continuous=true + auto-wznowienie po pauzie)."
-      ]
-    },
-    {
-      "wersja": "0.1.1",
-      "build_code": 2,
-      "data": "2026-11-24 23:42 CET",
-      "status_qa": "PASS",
-      "zmiany_pl": [
-        "Motywy fioletowe Fusionote (#A855F7) + Snapo + Granat."
       ]
     }
   ]

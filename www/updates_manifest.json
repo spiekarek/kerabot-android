@@ -1,18 +1,18 @@
 {
-  "schema_version": "1.2.0",
-  "updated_at": "2026-11-25T16:20:00+01:00",
+  "schema_version": "1.3.0",
+  "updated_at": "2026-11-26T05:20:00+01:00",
   "apk_latest": {
-    "version": "0.3.0",
-    "build_code": 5,
-    "release_date": "2026-11-25",
-    "apk_filename": "KeraBot-Seba-v0.3.0.apk",
+    "version": "0.4.0",
+    "build_code": 6,
+    "release_date": "2026-11-26",
+    "apk_filename": "KeraBot-Seba-v0.4.0.apk",
     "download_url": "https://github.com/spiekarek/kerabot-android/releases/latest/download/KeraBot-Seba-latest.apk",
     "drive_folder": "G:\\Mój dysk\\AI HUB DRIVE\\PROJECTS\\KERABOT_ANDROID_APK\\DO_POBRANIA\\",
     "changelog_pl": [
-      "NAPRAWIONO LOGOWANIE CLOUDFLARE ACCESS (brak ERR_BLOCKED_BY_RESPONSE): usunięto iframe, KeraBot i Cloudflare Access otwierają się w natywnym głównym oknie WebView w środku aplikacji!",
-      "NAPRAWIONO PODMIANĘ APK PRZY AKTUALIZACJI: wdrożono stały klucz podpisywania (kerabot-fixed.p12) i rosnący versionCode (5) — od v0.3.0 w górę każda kolejna aktualizacja nadpisuje aplikację BEZ odinstalowywania i BEZ utraty logowania!",
-      "Natywny dolny pasek Androida (Pokój | Live | Gry | Offline | Apka) działa zarówno na ekranie logowania Cloudflare, w Pokoju, jak i bez internetu.",
-      "Obsługa natywnego mikrofonu i dodawania zdjęć z galerii/aparatu bezpośrednio wewnątrz Pokoju KeraBota."
+      "NOWOŚĆ — UDOSTĘPNIJ Z GALERII TELEFONU PROSTO DO KERABOTA (Android Share Target): zaznacz 1 lub do 10 zrzutów ekranu (albo link/tekst) na telefonie -> Udostępnij -> KeraBot AI HUB, a trafią natychmiast do Inboxa Zrzutów!",
+      "NOWOŚĆ — INBOX ZRZUTÓW Z KATEGORIAMI I LUPĄ (Przeglądarka na telefonie): oznaczanie kategorią (Pomysł/Gra, Błąd/Zrzut, Grafika, Firma, Inne), filtrowanie, podgląd pełnoekranowy oraz eksport paczki do Pokoju i AI HUB.",
+      "NOWOŚĆ — PEŁNA PODMIANA BEZ USUWANIA (v0.3.0 -> v0.4.0, buildCode=6): ten sam stały klucz PKCS12 (CN=KeraBot AI HUB), więc aktualizacja nadpisuje aplikację 1 kliknięciem bez utraty logowania Cloudflare!",
+      "ULEPSZENIE — Standard CSS dla Galaxy Z Fold 7 i bezpiecznych stref (100dvh, env(safe-area-inset-*)) zapożyczony z Katalogu 14 (Fala 9)."
     ]
   },
   "modules": [
@@ -20,19 +20,19 @@
       "id": "kerabot-web",
       "category": "system",
       "name": "KeraBot — Pokój i Centrum Życiowe",
-      "version": "2.6.0",
+      "version": "2.7.0",
       "status": "ONLINE",
       "url": "https://kordian.s-piekarek.workers.dev/next#pokoj",
-      "notes": "Pełne panele (Start, Pokój, JoaSeb, Live, Gry, Programy) z natywnym logowaniem Cloudflare Access."
+      "notes": "Pełne panele (Start, Pokój z Pinami i Oznaczeniami, JoaSeb, Live, Gry, Programy) z natywnym logowaniem Cloudflare Access."
     },
     {
       "id": "hybryda-v3-cebula",
       "category": "gry",
       "name": "Hybryda v3.3 Cebula (Gotyx + AntyGot)",
-      "version": "3.3.0",
+      "version": "3.4.0",
       "status": "QA_PASS",
       "url": "https://kordian.s-piekarek.workers.dev/next#sebagames",
-      "notes": "Wersja v3.3 + kierunek 8 kierunków (oct) i materiały GLB."
+      "notes": "Siatka OKTA (8 kierunków), Uroczyska i materiały GLB."
     },
     {
       "id": "gotyx-classic-turbo",

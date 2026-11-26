@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>KeraBot AI HUB — v0.3.0 (Cloudflare Native + Offline)</title>
+  <title>KeraBot AI HUB — v0.4.0 (Inbox Zrzutów + Cloudflare Native)</title>
   <link rel="stylesheet" href="styles.css" />
   <style>
     body.has-native-bar .layout { padding-bottom: 12px !important; }
@@ -15,20 +15,26 @@
       padding-bottom: 8px;
       margin-bottom: 12px;
     }
-    .local-subtabs button {
+    .local-subtabs button, .cat-pill {
       white-space: nowrap;
-      padding: 8px 13px;
+      padding: 7px 12px;
       border-radius: 999px;
       border: 1px solid var(--border);
       background: var(--panel-2);
       color: var(--text);
-      font-size: 12.5px;
+      font-size: 12px;
       font-weight: 700;
       cursor: pointer;
     }
-    .local-subtabs button.active {
+    .local-subtabs button.active, .cat-pill.active {
       background: var(--btn-primary);
-      border-color: rgba(216,180,254,0.6);
+      border-color: rgba(216,180,254,0.7);
+    }
+    .cat-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 8px 0 10px;
     }
     .outbox-item {
       padding: 12px;
@@ -36,11 +42,36 @@
       background: var(--panel-2);
       border: 1px solid var(--border);
       border-left: 3px solid var(--warn);
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       font-size: 13.5px;
     }
-    .outbox-item.sent { border-left-color: var(--accent-2); opacity: 0.78; }
-    .outbox-img { max-width: 120px; border-radius: 8px; margin-top: 6px; display: block; }
+    .outbox-item.sent { border-left-color: var(--accent-2); opacity: 0.84; }
+    .outbox-img {
+      max-width: 140px;
+      max-height: 160px;
+      object-fit: cover;
+      border-radius: 10px;
+      margin-top: 8px;
+      display: block;
+      border: 1px solid rgba(168,85,247,0.45);
+      cursor: zoom-in;
+    }
+    .outbox-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .mini-btn {
+      padding: 5px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+    }
     .release-card {
       padding: 12px 14px;
       border-radius: 12px;
@@ -48,6 +79,32 @@
       border: 1px solid var(--border);
       border-left: 3px solid var(--accent);
       margin-bottom: 10px;
+    }
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(7, 4, 18, 0.94);
+      z-index: 9999;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .lightbox.open { display: flex; }
+    .lightbox img {
+      max-width: 96vw;
+      max-height: 76dvh;
+      border-radius: 12px;
+      border: 1px solid rgba(168,85,247,0.5);
+      object-fit: contain;
+    }
+    .lightbox-caption {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #e9d5ff;
+      text-align: center;
+      max-width: 92vw;
     }
   </style>
 </head>
@@ -58,28 +115,27 @@
         <div class="brand-logo">K</div>
         <div>
           <h1 class="brand-title">KeraBot AI HUB</h1>
-          <p class="brand-sub" id="device-mode-label">Panel Offline &amp; Rejestr Aktualizacji</p>
+          <p class="brand-sub" id="device-mode-label">Inbox Zrzutów + Cloudflare Native</p>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
         <span class="badge ok" id="net-status-badge">🟢 Online</span>
-        <span class="badge" id="app-version-badge">v0.3.0</span>
+        <span class="badge" id="app-version-badge">v0.4.0</span>
       </div>
     </header>
 
     <div class="layout">
       <aside class="sidebar" aria-label="Nawigacja boczna">
         <button type="button" class="nav-btn active" data-tab="updates"><span class="ico">🚀</span><span>Rejestr i Aktualizacje</span></button>
-        <button type="button" class="nav-btn" data-tab="offline"><span class="ico">📦</span><span>Kolejka Offline</span></button>
+        <button type="button" class="nav-btn" data-tab="offline"><span class="ico">📥</span><span>Inbox Zrzutów &amp; Offline</span></button>
         <button type="button" class="nav-btn" data-tab="phone"><span class="ico">🔔</span><span>Telefon i Dźwięki</span></button>
         <button type="button" class="nav-btn" data-tab="templates"><span class="ico">🧩</span><span>Szablon Modułów</span></button>
       </aside>
 
       <main class="main-content">
-        <!-- Gorny pasek zakladek wewnatrz panelu Apka/Offline -->
         <div class="local-subtabs">
           <button type="button" class="subtab-btn active" data-tab="updates">🚀 Rejestr &amp; Aktualizacje</button>
-          <button type="button" class="subtab-btn" data-tab="offline">📦 Kolejka Offline</button>
+          <button type="button" class="subtab-btn" data-tab="offline">📥 Inbox Zrzutów</button>
           <button type="button" class="subtab-btn" data-tab="phone">🔔 Dźwięki &amp; Kolory</button>
           <button type="button" class="subtab-btn" data-tab="templates">🧩 Szablon Modułów</button>
         </div>
@@ -93,10 +149,10 @@
           <a class="btn success" style="width: auto;" id="update-banner-btn" href="#" target="_blank" rel="noopener">Pobierz i aktualizuj</a>
         </div>
 
-        <!-- Szybki przelacznik do pelnych paneli KeraBota (otwiera natywne okno bez iframe!) -->
+        <!-- Szybki przelacznik do pelnych paneli KeraBota -->
         <div class="card">
           <h2>💬 Pełne Panele KeraBota (Natywne okno z Cloudflare Access)</h2>
-          <p>Logujesz się w Cloudflare Access <strong>tylko raz</strong> bezpośrednio w aplikacji (zero błędu blokady ramki i zero wyrzucania do Chrome!).</p>
+          <p>Logujesz się w Cloudflare Access <strong>tylko raz</strong> bezpośrednio w aplikacji. Z galerii telefonu możesz też kliknąć <strong>Udostępnij → KeraBot AI HUB</strong>, aby wrzucić zrzuty ekranu prosto do Inboxa!</p>
           <div class="btn-row">
             <button type="button" class="btn primary" data-native-kb="https://kordian.s-piekarek.workers.dev/next#pokoj">💬 Otwórz Pokój KeraBota</button>
             <button type="button" class="btn" data-native-kb="https://kordian.s-piekarek.workers.dev/next#start">🏠 Otwórz Panel Start</button>
@@ -115,7 +171,7 @@
 
           <div class="card">
             <h2>🚀 Centrum &amp; Rejestr Aktualizacji</h2>
-            <p>Od wersji <strong>v0.3.0</strong> aplikacja posiada stały podpis kryptograficzny — każda kolejna aktualizacja nadpisuje się 1 kliknięciem <strong>bez odinstalowywania starej wersji</strong>!</p>
+            <p>Aplikacja posiada stały podpis kryptograficzny (<strong>CN=KeraBot AI HUB</strong>) — każda aktualizacja od v0.3.0 w górę nadpisuje się 1 kliknięciem <strong>bez odinstalowywania starej wersji</strong>!</p>
             <div class="btn-row" style="margin-bottom: 12px;">
               <button type="button" class="btn primary" id="btn-refresh-manifest">🔄 Sprawdź aktualizacje w chmurze</button>
               <a class="btn success" id="btn-download-latest-apk" href="#" target="_blank" rel="noopener">⬇️ Pobierz najnowsze APK</a>
@@ -134,22 +190,41 @@
           </div>
         </section>
 
-        <!-- ZAKLADKA: KOLEJKA OFFLINE -->
+        <!-- ZAKLADKA: INBOX ZRZUTOW & KOLEJKA OFFLINE -->
         <section class="tab-panel" id="tab-offline">
           <div class="card">
-            <h2>📦 Kolejka Offline-Online (Notatki, Dyktowanie i Zdjęcia bez sieci)</h2>
-            <p>Gdy nie masz zasięgu, zapisuj tutaj wiadomości i zdjęcia. Wszystko zostaje bezpiecznie w pamięci telefonu.</p>
-            <textarea id="outbox-text" class="transcript-box" rows="3" placeholder="Wpisz lub podyktuj wiadomość do Pokoju / AI HUB…"></textarea>
+            <h2>📥 Inbox Zrzutów &amp; Kolejka Offline (Galeria → KeraBot)</h2>
+            <p>Wrzucaj tu notatki, dyktowanie i zdjęcia (albo wybierz w Galerii telefonu <strong>Udostępnij → KeraBot AI HUB</strong> — nawet do 10 zrzutów naraz!).</p>
+            <div class="cat-row" id="outbox-cat-picker" aria-label="Kategoria wpisu">
+              <button type="button" class="cat-pill active" data-cat="zrzut">🐛 Zrzut / Błąd</button>
+              <button type="button" class="cat-pill" data-cat="gra">🎮 Pomysł / Gra</button>
+              <button type="button" class="cat-pill" data-cat="grafika">🎨 Grafika / Styl</button>
+              <button type="button" class="cat-pill" data-cat="firma">📄 Firma / US</button>
+              <button type="button" class="cat-pill" data-cat="inne">📌 Inne</button>
+            </div>
+            <textarea id="outbox-text" class="transcript-box" rows="3" placeholder="Wpisz lub podyktuj opis zrzutu / wiadomość do Pokoju i AI HUB…"></textarea>
             <div class="btn-row" style="margin-top:10px;">
               <button type="button" class="btn primary" id="btn-outbox-dictate">🎤 Dyktuj po polsku (Ciągle)</button>
-              <label class="btn" style="cursor:pointer;">📷 Dodaj zdjęcie (Offline)<input type="file" id="outbox-photo" accept="image/*" hidden /></label>
-              <button type="button" class="btn success" id="btn-outbox-save">💾 Zapisz do Kolejki</button>
-              <button type="button" class="btn warn" id="btn-outbox-sync">🔄 Skopiuj kolejkę i otwórz Pokój</button>
+              <label class="btn" style="cursor:pointer;">📷 Dodaj zrzuty / zdjęcia<input type="file" id="outbox-photo" accept="image/*" multiple hidden /></label>
+              <button type="button" class="btn success" id="btn-outbox-save">💾 Zapisz do Inboxa</button>
+              <button type="button" class="btn warn" id="btn-outbox-sync">🔄 Skopiuj Inbox i otwórz Pokój</button>
             </div>
-            <div class="status-log" id="outbox-status">Gotowy. Elementy zapisane offline nigdy nie giną.</div>
+            <div class="status-log" id="outbox-status">Gotowy. Udostępnione zrzuty i notatki offline zapisują się lokalnie na telefonie.</div>
           </div>
+
           <div class="card">
-            <h2>📋 Zapisane na telefonie (<span id="outbox-count">0</span>)</h2>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+              <h2 style="margin:0;">🖼️ Przeglądarka Inboxa (<span id="outbox-count">0</span>)</h2>
+              <button type="button" class="mini-btn" id="btn-export-inbox-json">📤 Kopiuj JSON dla AI HUB</button>
+            </div>
+            <div class="cat-row" id="outbox-filter-bar">
+              <button type="button" class="cat-pill active" data-filter="all">Wszystkie</button>
+              <button type="button" class="cat-pill" data-filter="zrzut">🐛 Zrzuty</button>
+              <button type="button" class="cat-pill" data-filter="gra">🎮 Gry</button>
+              <button type="button" class="cat-pill" data-filter="grafika">🎨 Grafika</button>
+              <button type="button" class="cat-pill" data-filter="firma">📄 Firma</button>
+              <button type="button" class="cat-pill" data-filter="inne">📌 Inne</button>
+            </div>
             <div id="outbox-list"></div>
           </div>
         </section>
@@ -201,10 +276,17 @@
 
     <nav class="bottom-nav" aria-label="Nawigacja dolna (tryb WWW)">
       <button type="button" class="nav-btn active" data-tab="updates"><span class="ico">🚀</span><span>Rejestr</span></button>
-      <button type="button" class="nav-btn" data-tab="offline"><span class="ico">📦</span><span>Offline</span></button>
+      <button type="button" class="nav-btn" data-tab="offline"><span class="ico">📥</span><span>Inbox</span></button>
       <button type="button" class="nav-btn" data-tab="phone"><span class="ico">🔔</span><span>Telefon</span></button>
       <button type="button" class="nav-btn" data-tab="templates"><span class="ico">🧩</span><span>Szablon</span></button>
     </nav>
+  </div>
+
+  <!-- Pelnoekranowy podglad zrzutu (Lupa) -->
+  <div class="lightbox" id="img-lightbox" role="dialog" aria-modal="true">
+    <img id="lightbox-img" src="" alt="Podgląd zrzutu" />
+    <div class="lightbox-caption" id="lightbox-caption"></div>
+    <button type="button" class="btn primary" id="btn-close-lightbox" style="width:auto;margin-top:14px;">✖️ Zamknij podgląd</button>
   </div>
 
   <script src="app.js"></script>

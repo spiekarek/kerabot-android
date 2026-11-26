@@ -50,11 +50,12 @@ jobs:
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)
           "$APKSIGNER" verify --verbose --print-certs "$APK_FILE" | tee /tmp/apk_cert.txt
           grep -q "KeraBot AI HUB" /tmp/apk_cert.txt
-          echo "=== Weryfikacja versionCode w AndroidManifest skompilowanego APK ==="
+          echo "=== Weryfikacja versionCode oraz ACTION_SEND w AndroidManifest skompilowanego APK ==="
           AAPT2=$(find "$ANDROID_HOME/build-tools" -name aapt2 | sort -V | tail -n 1)
           "$AAPT2" dump badging "$APK_FILE" | head -n 5 | tee /tmp/apk_badging.txt
-          grep -q "versionCode='5'" /tmp/apk_badging.txt
-          grep -q "versionName='0.3.0'" /tmp/apk_badging.txt
+          grep -q "versionCode='6'" /tmp/apk_badging.txt
+          grep -q "versionName='0.4.0'" /tmp/apk_badging.txt
+          "$AAPT2" dump xmltree "$APK_FILE" --file AndroidManifest.xml | grep -q "android.intent.action.SEND"
 
       - name: Przygotuj gotowe pliki KeraBot-Seba-latest.apk oraz wersjonowany APK
         run: |
@@ -80,7 +81,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: "KeraBot AI HUB Android v0.3.0 (Natywne Cloudflare Access + Stały Podpis Aktualizacji)"
-          body: "Zbudowana i automatycznie zweryfikowana aplikacja Android v0.3.0 (buildCode=5, stały klucz PKCS12 CN=KeraBot AI HUB Seba). Natywne logowanie Cloudflare Access w głównym oknie (zero błędu ERR_BLOCKED_BY_RESPONSE) oraz nadpisywanie kolejnych aktualizacji bez odinstalowywania aplikacji."
+          name: "KeraBot AI HUB Android v0.4.0 (Inbox Zrzutów + Udostępnij z Galerii + Cloudflare Native)"
+          body: "Zbudowana i zweryfikowana aplikacja Android v0.4.0 (buildCode=6, stały klucz PKCS12 CN=KeraBot AI HUB). Nowość: Udostępnij 1–10 zrzutów ekranu z Galerii telefonu prosto do Inboxa KeraBota, kategorie i podgląd pełnoekranowy (lupa), standard CSS Fold 7 oraz bezproblemowa aktualizacja na v0.3.0 bez odinstalowywania!"
           files: release_out/*.apk
           make_latest: true

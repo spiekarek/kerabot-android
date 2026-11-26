@@ -1,13 +1,21 @@
 (function () {
   "use strict";
 
-  const CURRENT_APP_VERSION = "0.3.0";
-  const CURRENT_BUILD_CODE = 5;
+  const CURRENT_APP_VERSION = "0.4.0";
+  const CURRENT_BUILD_CODE = 6;
   const REMOTE_MANIFEST_URL =
     "https://raw.githubusercontent.com/spiekarek/kerabot-android/main/www/updates_manifest.json";
   const REMOTE_REGISTRY_URL =
     "https://raw.githubusercontent.com/spiekarek/kerabot-android/main/www/REJESTR_AKTUALIZACJI.json";
   const OUTBOX_KEY = "kerabot_offline_outbox_v1";
+
+  const CATEGORY_LABELS = {
+    zrzut: "🐛 Zrzut / Błąd",
+    gra: "🎮 Pomysł / Gra",
+    grafika: "🎨 Grafika / Styl",
+    firma: "📄 Firma / US",
+    inne: "📌 Inne"
+  };
 
   const MODULE_TEMPLATE = {
     schema_standard: "AI_HUB_MODULE_TEMPLATE_V2",
@@ -25,7 +33,7 @@
       {
         wersja: "1.0.0",
         build_code: 1,
-        data: "2026-11-25",
+        data: "2026-11-26",
         status_qa: "PASS",
         zmiany_pl: [
           "Pierwsze wydanie modułu zgodne ze standardem AI HUB.",
@@ -52,7 +60,7 @@
       .replace(/"/g, "&quot;");
   }
 
-  // 1. Zakladki lokalnego panelu (dostepne rowniez dla natywnego paska Androida przez window.SebaSwitchLocalTab)
+  // 1. Zakladki lokalnego panelu
   function switchTab(tabId) {
     const target = ["updates", "offline", "phone", "templates"].includes(tabId) ? tabId : "updates";
     document.querySelectorAll(".tab-panel").forEach((p) => {
@@ -68,7 +76,7 @@
     btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
 
-  // 2. Otwieranie pelnych paneli KeraBota w natywnym oknie top-level WebView (ZERO iframe, ZERO ERR_BLOCKED_BY_RESPONSE!)
+  // 2. Otwieranie pelnych paneli KeraBota w natywnym oknie top-level WebView
   function openKeraBotNative(url) {
     if (typeof window.SebaAndroidBridge !== "undefined" && window.SebaAndroidBridge.openKeraBotUrl) {
       window.SebaAndroidBridge.openKeraBotUrl(url);
@@ -121,92 +129,212 @@
 
   window.addEventListener("online", () => {
     updateNetworkUi();
-    setStatus("outbox-status", "🟢 Internet wrócił! Możesz zsynchronizować kolejkę 1 kliknięciem.");
+    setStatus("outbox-status", "🟢 Internet wrócił! Możesz zsynchronizować Inbox 1 kliknięciem.");
   });
   window.addEventListener("offline", () => {
     updateNetworkUi();
-    setStatus("outbox-status", "🟠 Tryb Offline — nowe wiadomości i zdjęcia zapiszą się lokalnie na telefonie.");
+    setStatus("outbox-status", "🟠 Tryb Offline — nowe zrzuty i wiadomości zapiszą się lokalnie na telefonie.");
   });
 
-  // 4. Kolejka Offline (Outbox Pattern)
-  let pendingPhotoDataUrl = null;
+  // 4. Inbox Zrzutow & Kolejka Offline + Android Share Target
+  let pendingPhotos = [];
+  let selectedCategory = "zrzut";
+  let activeFilter = "all";
+
+  document.querySelectorAll("#outbox-cat-picker [data-cat]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      selectedCategory = btn.dataset.cat || "zrzut";
+      document.querySelectorAll("#outbox-cat-picker [data-cat]").forEach((b) =>
+        b.classList.toggle("active", b === btn)
+      );
+    });
+  });
+
+  document.querySelectorAll("#outbox-filter-bar [data-filter]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activeFilter = btn.dataset.filter || "all";
+      document.querySelectorAll("#outbox-filter-bar [data-filter]").forEach((b) =>
+        b.classList.toggle("active", b === btn)
+      );
+      renderOutbox();
+    });
+  });
 
   function loadOutbox() {
     try { return JSON.parse(localStorage.getItem(OUTBOX_KEY) || "[]"); } catch (e) { return []; }
   }
   function saveOutbox(items) {
-    try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(items.slice(0, 50))); } catch (e) {}
+    try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(items.slice(0, 60))); } catch (e) {
+      // Gdy braknie miejsca w localStorage -> przytnij starsze elementy ze zdjeciami
+      try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(items.slice(0, 25))); } catch (e2) {}
+    }
   }
 
+  function openLightbox(src, caption) {
+    const lb = $("img-lightbox");
+    if (!lb) return;
+    $("lightbox-img").src = src;
+    $("lightbox-caption").textContent = caption || "";
+    lb.classList.add("open");
+  }
+  $("btn-close-lightbox")?.addEventListener("click", () => $("img-lightbox")?.classList.remove("open"));
+  $("img-lightbox")?.addEventListener("click", (ev) => {
+    if (ev.target === $("img-lightbox")) $("img-lightbox").classList.remove("open");
+  });
+
   function renderOutbox() {
-    const items = loadOutbox();
+    const allItems = loadOutbox();
+    const filtered = activeFilter === "all" ? allItems : allItems.filter((it) => (it.category || "inne") === activeFilter);
     const cnt = $("outbox-count");
-    if (cnt) cnt.textContent = String(items.length);
+    if (cnt) cnt.textContent = String(allItems.length);
     const list = $("outbox-list");
     if (!list) return;
-    if (!items.length) {
-      list.innerHTML = '<div style="font-size:13px;color:var(--muted);">Brak zapisanych pozycji w kolejce offline.</div>';
+    if (!filtered.length) {
+      list.innerHTML = '<div style="font-size:13px;color:var(--muted);">Brak pozycji w tym widoku Inboxa.</div>';
       return;
     }
-    list.innerHTML = items
+    list.innerHTML = filtered
       .map((it) => {
-        const badge = it.sent ? "✅ Skopiowane do Pokoju" : "⏳ Czeka w pamięci telefonu";
-        const imgHtml = it.photo ? '<img class="outbox-img" src="' + it.photo + '" alt="Zdjęcie offline" />' : "";
+        const badge = it.sent ? "✅ Skopiowane do Pokoju" : "⏳ Czeka w Inboxie";
+        const catLabel = CATEGORY_LABELS[it.category] || CATEGORY_LABELS.inne;
+        const srcLabel = it.source ? " · " + esc(it.source) : "";
+        const imgHtml = it.photo
+          ? '<img class="outbox-img" data-zoom-id="' + esc(it.id) + '" src="' + it.photo + '" alt="Zrzut w Inboxie" />'
+          : "";
         return (
           '<div class="outbox-item ' + (it.sent ? "sent" : "") + '">' +
-          '  <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:4px;">' +
-          '    <strong>' + badge + "</strong>" +
-          '    <span style="font-size:11px;color:var(--muted);">' + esc(it.createdAt) + "</span>" +
+          '  <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:4px;flex-wrap:wrap;">' +
+          '    <strong>' + badge + ' · ' + esc(catLabel) + "</strong>" +
+          '    <span style="font-size:11px;color:var(--muted);">' + esc(it.createdAt) + srcLabel + "</span>" +
           "  </div>" +
-          "  <div>" + esc(it.text || "(Tylko zdjęcie)") + "</div>" +
+          "  <div>" + esc(it.text || "(Zrzut bez opisu)") + "</div>" +
           imgHtml +
+          '  <div class="outbox-actions">' +
+          (it.photo ? '<button type="button" class="mini-btn" data-zoom-id="' + esc(it.id) + '">🔍 Powiększ</button>' : "") +
+          '    <button type="button" class="mini-btn" data-del-id="' + esc(it.id) + '">🗑️ Usuń</button>' +
+          "  </div>" +
           "</div>"
         );
       })
       .join("");
+
+    list.querySelectorAll("[data-zoom-id]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const found = loadOutbox().find((x) => String(x.id) === String(el.dataset.zoomId));
+        if (found && found.photo) openLightbox(found.photo, found.text || found.createdAt);
+      });
+    });
+
+    list.querySelectorAll("[data-del-id]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const next = loadOutbox().filter((x) => String(x.id) !== String(el.dataset.delId));
+        saveOutbox(next);
+        renderOutbox();
+      });
+    });
   }
 
+  // Odbior zrzutow/tekstow udostepnionych z Androida ("Udostepnij -> KeraBot AI HUB")
+  function consumePendingAndroidShare() {
+    if (typeof window.SebaAndroidBridge === "undefined" || !window.SebaAndroidBridge.consumePendingShareJson) {
+      return 0;
+    }
+    try {
+      const raw = window.SebaAndroidBridge.consumePendingShareJson();
+      if (!raw) return 0;
+      const shared = JSON.parse(raw);
+      if (!Array.isArray(shared) || !shared.length) return 0;
+      const items = loadOutbox();
+      const now = new Date().toLocaleString("pl-PL");
+      shared.forEach((s, idx) => {
+        items.unshift({
+          id: Date.now() + idx,
+          text: String(s.text || "Zrzut z Androida"),
+          photo: s.photo || null,
+          category: s.category || "zrzut",
+          source: s.source || "Udostępnij (Android)",
+          createdAt: now,
+          sent: false
+        });
+      });
+      saveOutbox(items);
+      switchTab("offline");
+      renderOutbox();
+      setStatus("outbox-status", "📥 Odebrano z Androida (" + shared.length + " szt.) i zapisano w Inboxie Zrzutów!");
+      return shared.length;
+    } catch (e) {
+      return 0;
+    }
+  }
+  window.SebaConsumePendingShare = consumePendingAndroidShare;
+
   $("outbox-photo")?.addEventListener("change", (ev) => {
-    const file = ev.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      pendingPhotoDataUrl = String(reader.result || "");
-      setStatus("outbox-status", "📷 Zdjęcie załączone — kliknij „Zapisz do Kolejki”.");
-    };
-    reader.readAsDataURL(file);
+    const files = Array.from(ev.target.files || []).slice(0, 10);
+    if (!files.length) return;
+    pendingPhotos = [];
+    let loaded = 0;
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        pendingPhotos.push(String(reader.result || ""));
+        loaded++;
+        if (loaded === files.length) {
+          setStatus("outbox-status", "📷 Załączono " + pendingPhotos.length + " zdj. — kliknij „Zapisz do Inboxa”.");
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   });
 
   $("btn-outbox-save")?.addEventListener("click", () => {
     const text = ($("outbox-text")?.value || "").trim();
-    if (!text && !pendingPhotoDataUrl) {
-      setStatus("outbox-status", "Wpisz/podyktuj wiadomość lub wybierz zdjęcie.");
+    if (!text && !pendingPhotos.length) {
+      setStatus("outbox-status", "Wpisz/podyktuj opis lub wybierz zrzut ekranu.");
       return;
     }
     const items = loadOutbox();
-    items.unshift({
-      id: Date.now(),
-      text,
-      photo: pendingPhotoDataUrl,
-      createdAt: new Date().toLocaleString("pl-PL"),
-      sent: false
-    });
+    const now = new Date().toLocaleString("pl-PL");
+    if (pendingPhotos.length) {
+      pendingPhotos.forEach((photo, idx) => {
+        items.unshift({
+          id: Date.now() + idx,
+          text: text || "Zrzut ekranu #" + (idx + 1),
+          photo,
+          category: selectedCategory,
+          source: "Dodane ręcznie",
+          createdAt: now,
+          sent: false
+        });
+      });
+    } else {
+      items.unshift({
+        id: Date.now(),
+        text,
+        photo: null,
+        category: selectedCategory,
+        source: "Notatka",
+        createdAt: now,
+        sent: false
+      });
+    }
     saveOutbox(items);
     if ($("outbox-text")) $("outbox-text").value = "";
-    pendingPhotoDataUrl = null;
+    pendingPhotos = [];
     renderOutbox();
-    setStatus("outbox-status", "✅ Zapisano bezpiecznie w pamięci telefonu (Kolejka Offline).");
+    setStatus("outbox-status", "✅ Zapisano bezpiecznie w Inboxie Zrzutów na telefonie.");
   });
 
   $("btn-outbox-sync")?.addEventListener("click", async () => {
     if (!checkIsOnline()) {
-      setStatus("outbox-status", "🟠 Nadal brak internetu — pozycje są bezpieczne w kolejce.");
+      setStatus("outbox-status", "🟠 Nadal brak internetu — pozycje są bezpieczne w Inboxie.");
       return;
     }
     const items = loadOutbox();
     const pending = items.filter((x) => !x.sent);
     if (pending.length) {
-      const joined = pending.map((p) => `[${p.createdAt}] ${p.text}`).join("\n\n");
+      const joined = pending
+        .map((p) => `[${p.createdAt} · ${CATEGORY_LABELS[p.category] || "Inne"}] ${p.text}${p.photo ? " (ze zrzutem)" : ""}`)
+        .join("\n\n");
       try { await navigator.clipboard.writeText(joined); } catch (e) {}
       items.forEach((x) => { x.sent = true; });
       saveOutbox(items);
@@ -215,7 +343,17 @@
     openKeraBotNative("https://kordian.s-piekarek.workers.dev/next#pokoj");
   });
 
-  // Ciagle dyktowanie PL do kolejki offline
+  $("btn-export-inbox-json")?.addEventListener("click", async () => {
+    const items = loadOutbox().map(({ id, text, category, source, createdAt, sent, photo }) => ({
+      id, text, category, source, createdAt, sent, ma_zdjecie: !!photo
+    }));
+    try {
+      await navigator.clipboard.writeText(JSON.stringify({ schema: "INBOX_OD_SZEFA_ANDROID_V1", count: items.length, items }, null, 2));
+      setStatus("outbox-status", "📤 Skopiowano indeks JSON Inboxa (" + items.length + " poz.) do schowka!");
+    } catch (e) {}
+  });
+
+  // Ciagle dyktowanie PL do Inboxa
   let outboxRec = null;
   let outboxListening = false;
   $("btn-outbox-dictate")?.addEventListener("click", () => {
@@ -275,8 +413,8 @@
       infoBody.innerHTML =
         "<strong>Nazwa:</strong> " + esc(p.nazwa || "KeraBot AI HUB") + "<br>" +
         "<strong>Wersja:</strong> v" + esc(CURRENT_APP_VERSION) + " (build " + CURRENT_BUILD_CODE + " · stały klucz PKCS12)<br>" +
-        "<strong>Data wydania:</strong> " + esc(p.data_wydania || "2026-11-25") + "<br>" +
-        "<strong>Architektura:</strong> " + esc(p.architektura || "Natywny Dual-WebView + Offline") + "<br>" +
+        "<strong>Data wydania:</strong> " + esc(p.data_wydania || "2026-11-26") + "<br>" +
+        "<strong>Architektura:</strong> " + esc(p.architektura || "Dual-WebView + Android Share Target") + "<br>" +
         "<strong>Autor:</strong> " + esc(p.autor || "Sebastian & Flota AI HUB");
     }
     const histEl = $("release-history-list");
@@ -381,13 +519,13 @@
       try { nativeModel = window.SebaAndroidBridge.getDeviceInfo(); } catch (e) {}
     }
     const label = $("device-mode-label");
-    if (label) label.textContent = "Natywne Cloudflare + Offline (" + w + "×" + h + ")";
+    if (label) label.textContent = "Inbox + Cloudflare (" + w + "×" + h + ")";
     const infoEl = $("device-info-text");
     if (infoEl) {
       infoEl.innerHTML =
         "<strong>Urządzenie:</strong> " + esc(nativeModel) + "<br>" +
         "<strong>Ekran:</strong> " + w + " × " + h + " px<br>" +
-        "<strong>Natywny Dual-WebView + Stały podpis APK:</strong> " + (hasBridge ? "✅ AKTYWNY" : "ℹ️ Podgląd WWW");
+        "<strong>Share Target (Udostępnij → KeraBot) + Stały podpis:</strong> " + (hasBridge ? "✅ AKTYWNY" : "ℹ️ Podgląd WWW");
     }
   }
   window.addEventListener("resize", updateDeviceInfo);
@@ -485,9 +623,9 @@
   updateDeviceInfo();
   updateNetworkUi();
   renderOutbox();
+  consumePendingAndroidShare();
   loadUpdatesAndRegistry(true);
 
-  // Obsluga hasha na starcie (#offline / #updates / #phone / #templates)
   const startHash = (window.location.hash || "").replace(/^#/, "").trim();
   if (startHash) switchTab(startHash);
 })();

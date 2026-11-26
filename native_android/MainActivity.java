@@ -7,6 +7,8 @@ import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.media.AudioAttributes;
@@ -17,6 +19,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.util.Base64;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -42,6 +45,11 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.util.ArrayList;
 
 public class MainActivity extends BridgeActivity {
     public static final String CHANNEL_ID = "AI_HUB_PILNE";
@@ -52,6 +60,7 @@ public class MainActivity extends BridgeActivity {
     private ValueCallback<Uri[]> filePathCallback;
     private ActivityResultLauncher<Intent> fileChooserLauncher;
     private Button[] navButtons = new Button[5];
+    private String pendingSharePayloadJson = null;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -102,11 +111,135 @@ public class MainActivity extends BridgeActivity {
             }
         });
 
-        // Jesli jest internet przy starcie -> od razu otworz pelny KeraBot Pokoj (top-level, zero iframe!)
-        if (checkOnlineStatus()) {
-            openRemoteKeraBot(KERABOT_BASE_URL + "#pokoj", 0, false);
-        } else {
-            switchToLocalTab("offline", 3);
+        // Sprawdz czy aplikacja zostala otwarta przez Android "Udostepnij -> KeraBot AI HUB"
+        boolean handledShare = handleIncomingShareIntent(getIntent());
+        if (!handledShare) {
+            if (checkOnlineStatus()) {
+                openRemoteKeraBot(KERABOT_BASE_URL + "#pokoj", 0, false);
+            } else {
+                switchToLocalTab("offline", 3);
+            }
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleIncomingShareIntent(intent);
+    }
+
+    private boolean handleIncomingShareIntent(Intent intent) {
+        if (intent == null) return false;
+        String action = intent.getAction();
+        String type = intent.getType();
+        if (action == null || type == null) return false;
+
+        if (!Intent.ACTION_SEND.equals(action) && !Intent.ACTION_SEND_MULTIPLE.equals(action)) {
+            return false;
+        }
+
+        try {
+            JSONArray items = new JSONArray();
+            String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
+            String sharedSubject = intent.getStringExtra(Intent.EXTRA_SUBJECT);
+
+            if (Intent.ACTION_SEND.equals(action) && type.startsWith("text/")) {
+                JSONObject obj = new JSONObject();
+                obj.put("text", (sharedSubject != null && !sharedSubject.isEmpty() ? sharedSubject + "\n" : "") + (sharedText != null ? sharedText : ""));
+                obj.put("source", "Udostępnij (Android)");
+                obj.put("category", "inne");
+                items.put(obj);
+            } else if (Intent.ACTION_SEND.equals(action) && type.startsWith("image/")) {
+                Uri uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+                if (uri != null) {
+                    String dataUrl = readScaledImageDataUrl(uri, 960);
+                    if (dataUrl != null) {
+                        JSONObject obj = new JSONObject();
+                        obj.put("text", sharedText != null && !sharedText.isEmpty() ? sharedText : "Zrzut / zdjęcie udostępnione z telefonu");
+                        obj.put("photo", dataUrl);
+                        obj.put("source", "Udostępnij (Galeria)");
+                        obj.put("category", "zrzut");
+                        items.put(obj);
+                    }
+                }
+            } else if (Intent.ACTION_SEND_MULTIPLE.equals(action) && type.startsWith("image/")) {
+                ArrayList<Uri> uris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
+                if (uris != null) {
+                    int maxCount = Math.min(uris.size(), 10);
+                    for (int i = 0; i < maxCount; i++) {
+                        String dataUrl = readScaledImageDataUrl(uris.get(i), 800);
+                        if (dataUrl != null) {
+                            JSONObject obj = new JSONObject();
+                            obj.put("text", "Zrzut " + (i + 1) + "/" + maxCount + (sharedText != null && !sharedText.isEmpty() ? " — " + sharedText : " z Galerii telefonu"));
+                            obj.put("photo", dataUrl);
+                            obj.put("source", "Udostępnij (Seria " + maxCount + " szt.)");
+                            obj.put("category", "zrzut");
+                            items.put(obj);
+                        }
+                    }
+                }
+            }
+
+            if (items.length() > 0) {
+                pendingSharePayloadJson = items.toString();
+                switchToLocalTab("offline", 3);
+                deliverPendingShareToJs();
+                return true;
+            }
+        } catch (Exception ignored) {}
+        return false;
+    }
+
+    private void deliverPendingShareToJs() {
+        runOnUiThread(() -> {
+            WebView localWv = getBridge().getWebView();
+            if (localWv == null || pendingSharePayloadJson == null) return;
+            localWv.postDelayed(() -> {
+                if (pendingSharePayloadJson == null) return;
+                localWv.evaluateJavascript("if(window.SebaConsumePendingShare){window.SebaConsumePendingShare();}", null);
+            }, 650);
+        });
+    }
+
+    private String readScaledImageDataUrl(Uri uri, int maxDim) {
+        try {
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            try (InputStream is1 = getContentResolver().openInputStream(uri)) {
+                if (is1 == null) return null;
+                BitmapFactory.decodeStream(is1, null, bounds);
+            }
+            int sample = 1;
+            int longest = Math.max(bounds.outWidth, bounds.outHeight);
+            while (longest / sample > maxDim * 2) {
+                sample *= 2;
+            }
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inSampleSize = sample;
+            Bitmap bmp;
+            try (InputStream is2 = getContentResolver().openInputStream(uri)) {
+                if (is2 == null) return null;
+                bmp = BitmapFactory.decodeStream(is2, null, opts);
+            }
+            if (bmp == null) return null;
+
+            int w = bmp.getWidth();
+            int h = bmp.getHeight();
+            if (w > maxDim || h > maxDim) {
+                float scale = Math.min((float) maxDim / w, (float) maxDim / h);
+                Bitmap scaled = Bitmap.createScaledBitmap(bmp, Math.max(1, Math.round(w * scale)), Math.max(1, Math.round(h * scale)), true);
+                if (scaled != bmp) bmp.recycle();
+                bmp = scaled;
+            }
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            bmp.compress(Bitmap.CompressFormat.JPEG, 80, baos);
+            bmp.recycle();
+            String b64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP);
+            return "data:image/jpeg;base64," + b64;
+        } catch (Exception e) {
+            return null;
         }
     }
 
@@ -205,7 +338,6 @@ public class MainActivity extends BridgeActivity {
                     return true;
                 }
                 if ("http".equals(scheme) || "https".equals(scheme)) {
-                    // Wszystkie przekierowania Cloudflare Access, PIN e-mail i KeraBot zostaja W SRODKU aplikacji!
                     return false;
                 }
                 launchExternalUrl(urlStr);
@@ -254,12 +386,11 @@ public class MainActivity extends BridgeActivity {
         kerabotWebView.setVisibility(View.GONE);
         webContainer.addView(kerabotWebView);
 
-        // Cienka fioletowa linia oddzielajaca
         View divider = new View(this);
         divider.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
         divider.setBackgroundColor(Color.parseColor("#4C1D95"));
 
-        // Natywny dolny pasek nawigacji (zawsze widoczny: zarowno w Cloudflare Access, w KeraBocie, jak i Offline!)
+        // Natywny dolny pasek nawigacji
         LinearLayout bottomBar = new LinearLayout(this);
         bottomBar.setOrientation(LinearLayout.HORIZONTAL);
         bottomBar.setBackgroundColor(Color.parseColor("#130D26"));
@@ -267,7 +398,7 @@ public class MainActivity extends BridgeActivity {
         bottomBar.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(52)));
 
-        String[] labels = new String[]{"💬 Pokój", "🧭 Live", "🎮 Gry", "📦 Offline", "🚀 Apka"};
+        String[] labels = new String[]{"💬 Pokój", "🧭 Live", "🎮 Gry", "📥 Inbox", "🚀 Apka"};
         for (int i = 0; i < labels.length; i++) {
             final int idx = i;
             Button b = new Button(this);
@@ -323,7 +454,7 @@ public class MainActivity extends BridgeActivity {
             if (forceReload || cur == null || cur.isEmpty() || "about:blank".equals(cur)) {
                 kerabotWebView.loadUrl(targetUrl);
             } else if (cur.contains("cloudflareaccess.com")) {
-                // Nie przeladowuj ekranu wpisywania kodu PIN z maila przy powrocie z Gmaila lub innej zakladki!
+                // Zachowaj formularz 6-cyfrowego kodu PIN przy powrocie z Gmaila!
             } else if (cur.startsWith(KERABOT_BASE_URL)) {
                 int hashPos = targetUrl.indexOf('#');
                 if (hashPos >= 0) {
@@ -434,6 +565,13 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public boolean isOnline() {
             return checkOnlineStatus();
+        }
+
+        @JavascriptInterface
+        public String consumePendingShareJson() {
+            String out = pendingSharePayloadJson;
+            pendingSharePayloadJson = null;
+            return out != null ? out : "";
         }
 
         @JavascriptInterface

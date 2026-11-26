@@ -34,7 +34,7 @@ if (fs.existsSync(path.join(root, "android", "app"))) {
   fs.mkdirSync(path.dirname(javaTarget), { recursive: true });
   fs.copyFileSync(javaSrc, javaTarget);
   fs.copyFileSync(keystoreSrc, keystoreTarget);
-  console.log("Wstrzyknieto MainActivity.java oraz skopiowano kerabot-fixed.p12 do android/app/.");
+  console.log("Wstrzyknieto MainActivity.java (v0.4.0 Share Target + Dual-WebView) oraz kerabot-fixed.p12.");
 }
 
 if (fs.existsSync(manifestPath)) {
@@ -52,15 +52,39 @@ if (fs.existsSync(manifestPath)) {
       xml = xml.replace("<application", "    " + p + "\n    <application");
     }
   }
+
+  // Dodaj natywne filtry Android "Udostepnij -> KeraBot AI HUB" (1 zdjecie, seria zdjec, tekst/linki)
+  if (!xml.includes("android.intent.action.SEND")) {
+    const shareFilters = `
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>`;
+    xml = xml.replace("</activity>", shareFilters);
+    console.log("Dodano intent-filter ACTION_SEND / ACTION_SEND_MULTIPLE (Udostepnij -> KeraBot AI HUB) do AndroidManifest.xml!");
+  }
+
   fs.writeFileSync(manifestPath, xml, "utf8");
-  console.log("Zaktualizowano uprawnienia w AndroidManifest.xml.");
+  console.log("Zaktualizowano AndroidManifest.xml.");
 }
 
 // Staly podpis APK (kerabot-fixed.p12) + rosnacy versionCode i versionName -> AKTUALIZACJA BEZ USUWANIA STAREJ APKI!
 if (fs.existsSync(appGradlePath) && fs.existsSync(updatesManifestPath)) {
   const manifest = JSON.parse(fs.readFileSync(updatesManifestPath, "utf8"));
-  const vCode = Number(manifest.apk_latest?.build_code || 5);
-  const vName = String(manifest.apk_latest?.version || "0.3.0");
+  const vCode = Number(manifest.apk_latest?.build_code || 6);
+  const vName = String(manifest.apk_latest?.version || "0.4.0");
 
   let gradle = fs.readFileSync(appGradlePath, "utf8");
   gradle = gradle.replace(/versionCode\s+\d+/, "versionCode " + vCode);

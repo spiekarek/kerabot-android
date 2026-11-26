@@ -1,7 +1,7 @@
 {
   "name": "kerabot-android",
-  "version": "0.3.0",
-  "description": "Uniwersalna aplikacja Android KeraBot AI HUB v0.3.0 (Natywne logowanie Cloudflare Access bez iframe, staly klucz podpisu APK, Offline-Online)",
+  "version": "0.4.0",
+  "description": "Uniwersalna aplikacja Android KeraBot AI HUB v0.4.0 (Udostepnij z Galerii do Inboxa, Natywne Cloudflare Access, staly klucz podpisu APK, CSS Fold 7)",
   "private": true,
   "scripts": {
     "cap:sync": "npx cap sync android",

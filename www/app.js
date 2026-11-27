@@ -241,18 +241,44 @@
   }
 
   // Odbior zrzutow/tekstow udostepnionych z Androida ("Udostepnij -> KeraBot AI HUB")
-  function consumePendingAndroidShare() {
+  let pendingShareRequestId = 0;
+  let consumingPendingShare = false;
+
+  function requestPendingShare(bridge, operation) {
+    const prefix = String(++pendingShareRequestId) + "\n";
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        bridge.onmessage = null;
+        reject(new Error("Brak odpowiedzi z Androida"));
+      }, 5000);
+      bridge.onmessage = ({ data }) => {
+        if (typeof data !== "string" || !data.startsWith(prefix)) return;
+        clearTimeout(timeout);
+        bridge.onmessage = null;
+        resolve(data.slice(prefix.length));
+      };
+      try {
+        bridge.postMessage(prefix + operation);
+      } catch (error) {
+        clearTimeout(timeout);
+        bridge.onmessage = null;
+        reject(error);
+      }
+    });
+  }
+
+  async function consumePendingAndroidShare() {
     const bridge = window.SebaPendingShare;
-    if (!bridge) return 0;
+    if (!bridge || consumingPendingShare) return 0;
+    consumingPendingShare = true;
     let saved = 0;
     let status = "";
     try {
-      let raw = bridge.peek();
-      if (!raw) return 0;
-      const items = JSON.parse(localStorage.getItem(OUTBOX_KEY) || "[]");
-      if (!Array.isArray(items)) throw new Error("Nieprawidłowy Inbox");
-      const ids = new Set(items.map((item) => String(item.id)));
+      let raw = await requestPendingShare(bridge, "peek");
       while (raw) {
+        const items = JSON.parse(localStorage.getItem(OUTBOX_KEY) || "[]");
+        if (!Array.isArray(items)) throw new Error("Nieprawidłowy Inbox");
+        const ids = new Set(items.map((item) => String(item.id)));
         const batch = JSON.parse(raw);
         if (typeof batch.id !== "string" || !Array.isArray(batch.items) || !batch.items.length) {
           throw new Error("Nieprawidłowa paczka Androida");
@@ -271,20 +297,20 @@
           status = "Inbox jest pełny lub nie ma miejsca na zapis. Paczka czeka w KeraBocie. Zwolnij miejsce w Inboxie.";
           break;
         }
-        items.unshift(...added);
-        added.forEach((item) => ids.add(item.id));
         saved += added.length;
-        if (!bridge.acknowledge(batch.id)) {
+        if (await requestPendingShare(bridge, "ack:" + batch.id) !== "true") {
           status = "Zapisano paczkę, ale potwierdzenie odbioru czeka na ponowne otwarcie Inboxa.";
           break;
         }
-        raw = bridge.peek();
+        raw = await requestPendingShare(bridge, "peek");
       }
       if (!status && saved) {
         status = "📥 Zapisano w Inboxie " + saved + " pozycji z Androida.";
       }
     } catch (e) {
       status = "Nie udało się odczytać Inboxa lub zapisać paczki. Paczka czeka w KeraBocie.";
+    } finally {
+      consumingPendingShare = false;
     }
     if (status) {
       switchTab("offline");

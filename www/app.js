@@ -408,13 +408,15 @@
   // 5. Rejestr Aktualizacji + Informacja o programie + Manifest
   function renderRegistry(reg) {
     const p = reg?.program || {};
+    const sameBuild = Number(p.build_code) === CURRENT_BUILD_CODE;
+    const installed = reg?.historia_wydan?.find((release) => Number(release.build_code) === CURRENT_BUILD_CODE);
     const infoBody = $("program-info-body");
     if (infoBody) {
       infoBody.innerHTML =
         "<strong>Nazwa:</strong> " + esc(p.nazwa || "KeraBot AI HUB") + "<br>" +
         "<strong>Wersja:</strong> v" + esc(CURRENT_APP_VERSION) + " (build " + CURRENT_BUILD_CODE + " · stały klucz PKCS12)<br>" +
-        "<strong>Data wydania:</strong> " + esc(p.data_wydania || "2026-11-26") + "<br>" +
-        "<strong>Architektura:</strong> " + esc(p.architektura || "Dual-WebView + Android Share Target") + "<br>" +
+        "<strong>Data wydania:</strong> " + esc(installed?.data || (sameBuild && p.data_wydania) || "2026-11-26") + "<br>" +
+        "<strong>Architektura:</strong> " + esc((sameBuild && p.architektura) || "Dual-WebView + Android Share Target") + "<br>" +
         "<strong>Autor:</strong> " + esc(p.autor || "Sebastian & Flota AI HUB");
     }
     const histEl = $("release-history-list");

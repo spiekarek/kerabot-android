@@ -436,7 +436,7 @@
     }
   }
 
-  function renderManifest(manifest, sourceLabel) {
+  function renderManifest(manifest, isRemote) {
     const apk = manifest.apk_latest || {};
     const dlBtn = $("btn-download-latest-apk");
     if (dlBtn && apk.download_url) dlBtn.href = apk.download_url;
@@ -479,33 +479,84 @@
 
     setStatus(
       "updates-status",
-      "Źródło: " + sourceLabel + " | Zainstalowane: v" + CURRENT_APP_VERSION +
-      " | Najnowsze: v" + (apk.version || CURRENT_APP_VERSION) +
-      (hasNewerApk ? " (DOSTĘPNA AKTUALIZACJA!)" : " (Masz najnowszą wersję ✅)")
+      "Źródło: " + (isRemote ? "Chmura GitHub (Live)" : "Pakiet lokalny") +
+      " | Zainstalowane: v" + CURRENT_APP_VERSION +
+      (isRemote ? " | Najnowsze: v" : " | W pakiecie: v") + (apk.version || CURRENT_APP_VERSION) +
+      (hasNewerApk ? " (DOSTĘPNA AKTUALIZACJA!)" : isRemote ? " (Masz najnowszą wersję ✅)" : "")
     );
   }
 
-  async function loadUpdatesAndRegistry(tryRemote) {
-    setStatus("updates-status", "Sprawdzanie manifestu i rejestru aktualizacji…");
-    if (tryRemote && checkIsOnline()) {
+  async function fetchUpdateData(remoteUrl, localPath, isValid, tryRemote) {
+    if (tryRemote) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
       try {
-        const [mRes, rRes] = await Promise.all([
-          fetch(REMOTE_MANIFEST_URL + "?t=" + Date.now(), { cache: "no-store" }),
-          fetch(REMOTE_REGISTRY_URL + "?t=" + Date.now(), { cache: "no-store" })
-        ]);
-        if (mRes.ok) renderManifest(await mRes.json(), "Chmura GitHub (Live)");
-        if (rRes.ok) renderRegistry(await rRes.json());
-        if (mRes.ok) return;
-      } catch (e) {}
+        const response = await fetch(remoteUrl + "?t=" + Date.now(), {
+          cache: "no-store",
+          signal: controller.signal
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (isValid(data)) return { data, remote: true };
+        }
+      } catch (e) {
+        // Błąd jednego pliku nie wyklucza drugiego źródła.
+      } finally {
+        clearTimeout(timeout);
+      }
     }
+
     try {
-      const mLocal = await (await fetch("updates_manifest.json")).json();
-      renderManifest(mLocal, "Pakiet lokalny (Offline)");
-    } catch (e) {}
-    try {
-      const rLocal = await (await fetch("REJESTR_AKTUALIZACJI.json")).json();
-      renderRegistry(rLocal);
-    } catch (e) {}
+      const response = await fetch(localPath);
+      if (response.ok) {
+        const data = await response.json();
+        if (isValid(data)) return { data, remote: false };
+      }
+    } catch (e) {
+      // Przy nieudanym odczycie interfejs wyświetli stan braku danych.
+    }
+    return null;
+  }
+
+  function isUpdateManifest(data) {
+    const rawBuildCode = data?.apk_latest?.build_code;
+    const buildCode = Number(rawBuildCode);
+    const modules = data?.modules;
+    return typeof data?.apk_latest?.version === "string" &&
+      (typeof rawBuildCode === "number" || typeof rawBuildCode === "string") &&
+      Number.isInteger(buildCode) && buildCode > 0 &&
+      (modules == null || (Array.isArray(modules) && modules.every(item => item && typeof item === "object")));
+  }
+
+  function isReleaseRegistry(data) {
+    return typeof data?.program?.nazwa === "string" &&
+      Array.isArray(data.historia_wydan) &&
+      data.historia_wydan.every(item => item && typeof item === "object" && (item.zmiany_pl == null || Array.isArray(item.zmiany_pl)));
+  }
+
+  let latestUpdateRequest = 0;
+  async function loadUpdatesAndRegistry(tryRemote) {
+    const requestId = ++latestUpdateRequest;
+    const remote = tryRemote && checkIsOnline();
+    setStatus("updates-status", "Sprawdzanie manifestu i rejestru aktualizacji…");
+    await Promise.all([
+      fetchUpdateData(REMOTE_MANIFEST_URL, "updates_manifest.json", isUpdateManifest, remote).then(result => {
+        if (requestId !== latestUpdateRequest) return;
+        if (result) {
+          renderManifest(result.data, result.remote);
+        } else {
+          setStatus("updates-status", "Nie udało się odczytać manifestu aktualizacji.");
+        }
+      }),
+      fetchUpdateData(REMOTE_REGISTRY_URL, "REJESTR_AKTUALIZACJI.json", isReleaseRegistry, remote).then(result => {
+        if (requestId !== latestUpdateRequest) return;
+        if (result) {
+          renderRegistry(result.data);
+        } else {
+          setStatus("release-history-list", "Nie udało się odczytać historii wydań.");
+        }
+      })
+    ]);
   }
 
   // 6. Telefon, Dzwieki, Mikrofon i Urzadzenie

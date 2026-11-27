@@ -408,13 +408,15 @@
   // 5. Rejestr Aktualizacji + Informacja o programie + Manifest
   function renderRegistry(reg) {
     const p = reg?.program || {};
+    const sameBuild = Number(p.build_code) === CURRENT_BUILD_CODE;
+    const installed = reg?.historia_wydan?.find((release) => Number(release.build_code) === CURRENT_BUILD_CODE);
     const infoBody = $("program-info-body");
     if (infoBody) {
       infoBody.innerHTML =
         "<strong>Nazwa:</strong> " + esc(p.nazwa || "KeraBot AI HUB") + "<br>" +
         "<strong>Wersja:</strong> v" + esc(CURRENT_APP_VERSION) + " (build " + CURRENT_BUILD_CODE + " · stały klucz PKCS12)<br>" +
-        "<strong>Data wydania:</strong> " + esc(p.data_wydania || "2026-11-26") + "<br>" +
-        "<strong>Architektura:</strong> " + esc(p.architektura || "Dual-WebView + Android Share Target") + "<br>" +
+        "<strong>Data wydania:</strong> " + esc(installed?.data || (sameBuild && p.data_wydania) || "2026-11-26") + "<br>" +
+        "<strong>Architektura:</strong> " + esc((sameBuild && p.architektura) || "Dual-WebView + Android Share Target") + "<br>" +
         "<strong>Autor:</strong> " + esc(p.autor || "Sebastian & Flota AI HUB");
     }
     const histEl = $("release-history-list");
@@ -436,7 +438,7 @@
     }
   }
 
-  function renderManifest(manifest, sourceLabel) {
+  function renderManifest(manifest, fromRemote) {
     const apk = manifest.apk_latest || {};
     const dlBtn = $("btn-download-latest-apk");
     if (dlBtn && apk.download_url) dlBtn.href = apk.download_url;
@@ -479,33 +481,59 @@
 
     setStatus(
       "updates-status",
-      "Źródło: " + sourceLabel + " | Zainstalowane: v" + CURRENT_APP_VERSION +
-      " | Najnowsze: v" + (apk.version || CURRENT_APP_VERSION) +
-      (hasNewerApk ? " (DOSTĘPNA AKTUALIZACJA!)" : " (Masz najnowszą wersję ✅)")
+      "Źródło: " + (fromRemote ? "Chmura GitHub (Live)" : "Pakiet lokalny") +
+      " | Zainstalowane: v" + CURRENT_APP_VERSION +
+      (fromRemote ? " | Najnowsze: v" : " | W pakiecie: v") + (apk.version || CURRENT_APP_VERSION) +
+      (hasNewerApk ? " (DOSTĘPNA AKTUALIZACJA!)" : fromRemote ? " (Masz najnowszą wersję ✅)" : "")
     );
   }
 
-  async function loadUpdatesAndRegistry(tryRemote) {
-    setStatus("updates-status", "Sprawdzanie manifestu i rejestru aktualizacji…");
-    if (tryRemote && checkIsOnline()) {
+  async function loadUpdatesFile(remoteUrl, packagedUrl, online, isValid, signal) {
+    if (online) {
+      const remoteRequest = new AbortController();
+      const cancelRemote = () => remoteRequest.abort();
+      signal.addEventListener("abort", cancelRemote, { once: true });
+      const timeout = setTimeout(cancelRemote, 8000);
       try {
-        const [mRes, rRes] = await Promise.all([
-          fetch(REMOTE_MANIFEST_URL + "?t=" + Date.now(), { cache: "no-store" }),
-          fetch(REMOTE_REGISTRY_URL + "?t=" + Date.now(), { cache: "no-store" })
-        ]);
-        if (mRes.ok) renderManifest(await mRes.json(), "Chmura GitHub (Live)");
-        if (rRes.ok) renderRegistry(await rRes.json());
-        if (mRes.ok) return;
-      } catch (e) {}
+        const response = await fetch(remoteUrl + "?t=" + Date.now(), { cache: "no-store", signal: remoteRequest.signal });
+        const data = response.ok ? await response.json() : null;
+        if (isValid(data)) return { data, fromRemote: true };
+      } catch {} finally {
+        clearTimeout(timeout);
+        signal.removeEventListener("abort", cancelRemote);
+      }
     }
+    if (signal.aborted) return null;
     try {
-      const mLocal = await (await fetch("updates_manifest.json")).json();
-      renderManifest(mLocal, "Pakiet lokalny (Offline)");
-    } catch (e) {}
-    try {
-      const rLocal = await (await fetch("REJESTR_AKTUALIZACJI.json")).json();
-      renderRegistry(rLocal);
-    } catch (e) {}
+      const response = await fetch(packagedUrl, { signal });
+      const data = response.ok ? await response.json() : null;
+      if (isValid(data)) return { data, fromRemote: false };
+    } catch {}
+    return null;
+  }
+
+  let updatesRequest;
+  function loadUpdatesAndRegistry(tryRemote) {
+    updatesRequest?.abort();
+    updatesRequest = new AbortController();
+    const { signal } = updatesRequest;
+    const online = tryRemote && checkIsOnline();
+    setStatus("updates-status", "Sprawdzanie manifestu aktualizacji…");
+
+    const manifestValid = (data) => data?.apk_latest && Array.isArray(data.modules) && data.modules.every(Boolean);
+    const registryValid = (data) => data?.program && Array.isArray(data.historia_wydan) &&
+      data.historia_wydan.every((entry) => entry && (!entry.zmiany_pl || Array.isArray(entry.zmiany_pl)));
+
+    loadUpdatesFile(REMOTE_MANIFEST_URL, "updates_manifest.json", online, manifestValid, signal).then((result) => {
+      if (signal.aborted) return;
+      if (result) renderManifest(result.data, result.fromRemote);
+      else setStatus("updates-status", "Manifest aktualizacji jest niedostępny. Spróbuj odświeżyć.");
+    });
+    loadUpdatesFile(REMOTE_REGISTRY_URL, "REJESTR_AKTUALIZACJI.json", online, registryValid, signal).then((result) => {
+      if (signal.aborted) return;
+      if (result) renderRegistry(result.data);
+      else if (!$("release-history-list")?.hasChildNodes()) setStatus("program-info-body", "Rejestr wydań jest niedostępny. Spróbuj odświeżyć.");
+    });
   }
 
   // 6. Telefon, Dzwieki, Mikrofon i Urzadzenie

@@ -40,7 +40,8 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
 
-      - name: Zweryfikuj certyfikat podpisu APK oraz versionCode przed publikacja
+      - name: Zweryfikuj certyfikat, wersję i udostępnianie przed publikacją
+        shell: bash
         run: |
           APK_FILE="android/app/build/outputs/apk/debug/app-debug.apk"
           test -f "$APK_FILE"
@@ -52,10 +53,13 @@ jobs:
           grep -q "KeraBot AI HUB" /tmp/apk_cert.txt
           echo "=== Weryfikacja versionCode oraz ACTION_SEND w AndroidManifest skompilowanego APK ==="
           AAPT2=$(find "$ANDROID_HOME/build-tools" -name aapt2 | sort -V | tail -n 1)
-          "$AAPT2" dump badging "$APK_FILE" | head -n 5 | tee /tmp/apk_badging.txt
-          grep -q "versionCode='6'" /tmp/apk_badging.txt
-          grep -q "versionName='0.4.0'" /tmp/apk_badging.txt
-          "$AAPT2" dump xmltree "$APK_FILE" --file AndroidManifest.xml | grep -q "android.intent.action.SEND"
+          "$AAPT2" dump badging "$APK_FILE" > /tmp/apk_badging.txt
+          sed -n '1,5p' /tmp/apk_badging.txt
+          grep -Fq "versionCode='6'" /tmp/apk_badging.txt
+          grep -Fq "versionName='0.4.0'" /tmp/apk_badging.txt
+          "$AAPT2" dump xmltree "$APK_FILE" --file AndroidManifest.xml > /tmp/apk_manifest.txt
+          grep -Fq '"android.intent.action.SEND"' /tmp/apk_manifest.txt
+          grep -Fq '"android.intent.action.SEND_MULTIPLE"' /tmp/apk_manifest.txt
 
       - name: Przygotuj gotowe pliki KeraBot-Seba-latest.apk oraz wersjonowany APK
         run: |
@@ -69,6 +73,7 @@ jobs:
         with:
           name: KeraBot-Seba-APK
           path: release_out/*.apk
+          if-no-files-found: error
 
       - name: Przesun tag latest na aktualny commit
         run: |
@@ -84,4 +89,17 @@ jobs:
           name: "KeraBot AI HUB Android v0.4.0 (Inbox Zrzutów + Udostępnij z Galerii + Cloudflare Native)"
           body: "Zbudowana i zweryfikowana aplikacja Android v0.4.0 (buildCode=6, stały klucz PKCS12 CN=KeraBot AI HUB). Nowość: Udostępnij 1–10 zrzutów ekranu z Galerii telefonu prosto do Inboxa KeraBota, kategorie i podgląd pełnoekranowy (lupa), standard CSS Fold 7 oraz bezproblemowa aktualizacja na v0.3.0 bez odinstalowywania!"
           files: release_out/*.apk
+          fail_on_unmatched_files: true
           make_latest: true
+
+      - name: Sprawdź oba pliki APK po publikacji
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          mkdir -p release_check
+          for APK in KeraBot-Seba-latest.apk "KeraBot-Seba-v${VER}.apk"; do
+            gh release download latest --repo "$GITHUB_REPOSITORY" --pattern "$APK" --dir release_check
+            cmp "release_out/$APK" "release_check/$APK"
+          done

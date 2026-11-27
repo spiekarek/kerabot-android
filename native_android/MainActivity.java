@@ -56,6 +56,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.UUID;
@@ -122,7 +123,7 @@ public class MainActivity extends BridgeActivity {
         });
 
         // Sprawdz czy aplikacja zostala otwarta przez Android "Udostepnij -> KeraBot AI HUB"
-        boolean handledShare = savedInstanceState == null && handleIncomingShareIntent(getIntent());
+        boolean handledShare = savedInstanceState == null && handleIncomingShareIntent(getIntent(), true);
         if (!handledShare && oldestPendingShare() != null) {
             switchToLocalTab("offline", 3);
             deliverPendingShareToJs();
@@ -141,10 +142,10 @@ public class MainActivity extends BridgeActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        handleIncomingShareIntent(intent);
+        handleIncomingShareIntent(intent, false);
     }
 
-    private boolean handleIncomingShareIntent(Intent intent) {
+    private boolean handleIncomingShareIntent(Intent intent, boolean onLaunch) {
         if (intent == null) return false;
         String action = intent.getAction();
         String type = intent.getType();
@@ -199,7 +200,7 @@ public class MainActivity extends BridgeActivity {
             }
 
             if (items.length() > 0) {
-                storePendingShare(items);
+                storePendingShare(items, onLaunch);
                 if (items.length() < expected) {
                     Toast.makeText(this, "Odebrano " + items.length() + " z " + expected
                             + " plików. Udostępnij pozostałe osobno.", Toast.LENGTH_LONG).show();
@@ -229,13 +230,23 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
-    private void storePendingShare(JSONArray items) throws Exception {
+    private void storePendingShare(JSONArray items, boolean onLaunch) throws Exception {
         synchronized (SHARE_QUEUE_LOCK) {
             File directory = shareQueueDirectory();
             if (!directory.isDirectory() && !directory.mkdirs()) {
                 throw new IOException("Nie można utworzyć kolejki odbioru");
             }
-            String batchId = System.currentTimeMillis() + "-" + UUID.randomUUID();
+            byte[] data = items.toString().getBytes(StandardCharsets.UTF_8);
+            String fingerprint = Base64.encodeToString(MessageDigest.getInstance("SHA-256").digest(data),
+                    Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING);
+            String suffix = "-" + fingerprint + ".json";
+            if (onLaunch) {
+                // Android może wznowić to samo udostępnienie po awarii renderera.
+                String[] pending = directory.list((parent, name) -> name.endsWith(suffix));
+                if (pending == null) throw new IOException("Nie można odczytać kolejki odbioru");
+                if (pending.length > 0) return;
+            }
+            String batchId = System.currentTimeMillis() + "-" + UUID.randomUUID() + "-" + fingerprint;
             JSONObject batch = new JSONObject();
             batch.put("id", batchId);
             batch.put("items", items);

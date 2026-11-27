@@ -8,6 +8,7 @@
   const REMOTE_REGISTRY_URL =
     "https://raw.githubusercontent.com/spiekarek/kerabot-android/main/www/REJESTR_AKTUALIZACJI.json";
   const OUTBOX_KEY = "kerabot_offline_outbox_v1";
+  const MAX_OUTBOX_ITEMS = 60;
 
   const CATEGORY_LABELS = {
     zrzut: "🐛 Zrzut / Błąd",
@@ -164,7 +165,7 @@
     try { return JSON.parse(localStorage.getItem(OUTBOX_KEY) || "[]"); } catch (e) { return []; }
   }
   function saveOutbox(items) {
-    try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(items.slice(0, 60))); } catch (e) {
+    try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(items.slice(0, MAX_OUTBOX_ITEMS))); } catch (e) {
       // Gdy braknie miejsca w localStorage -> przytnij starsze elementy ze zdjeciami
       try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(items.slice(0, 25))); } catch (e2) {}
     }
@@ -230,25 +231,41 @@
         const next = loadOutbox().filter((x) => String(x.id) !== String(el.dataset.delId));
         saveOutbox(next);
         renderOutbox();
+        consumePendingAndroidShare();
       });
     });
   }
 
   // Odbior zrzutow/tekstow udostepnionych z Androida ("Udostepnij -> KeraBot AI HUB")
   function consumePendingAndroidShare() {
-    if (typeof window.SebaAndroidBridge === "undefined" || !window.SebaAndroidBridge.consumePendingShareJson) {
-      return 0;
-    }
+    const bridge = window.SebaAndroidBridge;
+    const requiresAck = typeof bridge?.peekPendingShareJson === "function" &&
+      typeof bridge.acknowledgePendingShareJson === "function";
+    if (!requiresAck && typeof bridge?.consumePendingShareJson !== "function") return 0;
     try {
-      const raw = window.SebaAndroidBridge.consumePendingShareJson();
+      const raw = requiresAck ? bridge.peekPendingShareJson() : bridge.consumePendingShareJson();
       if (!raw) return 0;
-      const shared = JSON.parse(raw);
+      const payload = JSON.parse(raw);
+      const shared = requiresAck ? payload.items : payload;
       if (!Array.isArray(shared) || !shared.length) return 0;
-      const items = loadOutbox();
+      const batchId = requiresAck ? payload.id : null;
+      if (requiresAck && (typeof batchId !== "string" || !batchId)) return 0;
+      switchTab("offline");
+      let items;
+      try {
+        items = requiresAck ? JSON.parse(localStorage.getItem(OUTBOX_KEY) || "[]") : loadOutbox();
+        if (!Array.isArray(items)) throw new Error("Nieprawidłowy zapis Inboxa");
+      } catch {
+        setStatus("outbox-status", "Nie można odczytać Inboxa. Paczka czeka na zapis.");
+        return 0;
+      }
+      const savedIds = new Set(items.map((item) => String(item.id)));
       const now = new Date().toLocaleString("pl-PL");
       shared.forEach((s, idx) => {
+        const id = batchId ? "android-" + batchId + "-" + idx : Date.now() + idx;
+        if (batchId && savedIds.has(id)) return;
         items.unshift({
-          id: Date.now() + idx,
+          id,
           text: String(s.text || "Zrzut z Androida"),
           photo: s.photo || null,
           category: s.category || "zrzut",
@@ -257,8 +274,18 @@
           sent: false
         });
       });
-      saveOutbox(items);
-      switchTab("offline");
+      if (requiresAck) {
+        try {
+          if (items.length > MAX_OUTBOX_ITEMS) throw new Error("Zapełniony Inbox");
+          localStorage.setItem(OUTBOX_KEY, JSON.stringify(items));
+        } catch {
+          setStatus("outbox-status", "Brak miejsca w Inboxie. Usuń zbędną pozycję, aby ponowić zapis.");
+          return 0;
+        }
+        bridge.acknowledgePendingShareJson(batchId);
+      } else {
+        saveOutbox(items);
+      }
       renderOutbox();
       setStatus("outbox-status", "📥 Odebrano z Androida (" + shared.length + " szt.) i zapisano w Inboxie Zrzutów!");
       return shared.length;

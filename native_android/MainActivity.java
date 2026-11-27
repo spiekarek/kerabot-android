@@ -49,7 +49,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.UUID;
 
 public class MainActivity extends BridgeActivity {
     public static final String CHANNEL_ID = "AI_HUB_PILNE";
@@ -60,7 +62,7 @@ public class MainActivity extends BridgeActivity {
     private ValueCallback<Uri[]> filePathCallback;
     private ActivityResultLauncher<Intent> fileChooserLauncher;
     private Button[] navButtons = new Button[5];
-    private String pendingSharePayloadJson = null;
+    private final ArrayDeque<JSONObject> pendingShareBatches = new ArrayDeque<>();
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -182,7 +184,12 @@ public class MainActivity extends BridgeActivity {
             }
 
             if (items.length() > 0) {
-                pendingSharePayloadJson = items.toString();
+                JSONObject batch = new JSONObject();
+                batch.put("id", UUID.randomUUID().toString());
+                batch.put("items", items);
+                synchronized (pendingShareBatches) {
+                    pendingShareBatches.addLast(batch);
+                }
                 switchToLocalTab("offline", 3);
                 deliverPendingShareToJs();
                 return true;
@@ -194,12 +201,18 @@ public class MainActivity extends BridgeActivity {
     private void deliverPendingShareToJs() {
         runOnUiThread(() -> {
             WebView localWv = getBridge().getWebView();
-            if (localWv == null || pendingSharePayloadJson == null) return;
+            if (localWv == null || !hasPendingShare()) return;
             localWv.postDelayed(() -> {
-                if (pendingSharePayloadJson == null) return;
+                if (!hasPendingShare()) return;
                 localWv.evaluateJavascript("if(window.SebaConsumePendingShare){window.SebaConsumePendingShare();}", null);
             }, 650);
         });
+    }
+
+    private boolean hasPendingShare() {
+        synchronized (pendingShareBatches) {
+            return !pendingShareBatches.isEmpty();
+        }
     }
 
     private String readScaledImageDataUrl(Uri uri, int maxDim) {
@@ -569,9 +582,28 @@ public class MainActivity extends BridgeActivity {
 
         @JavascriptInterface
         public String consumePendingShareJson() {
-            String out = pendingSharePayloadJson;
-            pendingSharePayloadJson = null;
-            return out != null ? out : "";
+            synchronized (pendingShareBatches) {
+                JSONObject batch = pendingShareBatches.pollFirst();
+                return batch == null ? "" : batch.optJSONArray("items").toString();
+            }
+        }
+
+        @JavascriptInterface
+        public String peekPendingShareJson() {
+            synchronized (pendingShareBatches) {
+                JSONObject batch = pendingShareBatches.peekFirst();
+                return batch == null ? "" : batch.toString();
+            }
+        }
+
+        @JavascriptInterface
+        public void acknowledgePendingShareJson(String id) {
+            synchronized (pendingShareBatches) {
+                JSONObject batch = pendingShareBatches.peekFirst();
+                if (batch == null || !batch.optString("id").equals(id)) return;
+                pendingShareBatches.removeFirst();
+            }
+            deliverPendingShareToJs();
         }
 
         @JavascriptInterface

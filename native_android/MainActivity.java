@@ -19,7 +19,9 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.util.AtomicFile;
 import android.util.Base64;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -38,29 +40,40 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
+import androidx.webkit.WebViewCompat;
+import androidx.webkit.WebViewFeature;
 import com.getcapacitor.BridgeActivity;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.UUID;
 
 public class MainActivity extends BridgeActivity {
     public static final String CHANNEL_ID = "AI_HUB_PILNE";
     private static final String KERABOT_BASE_URL = "https://kordian.s-piekarek.workers.dev/next";
+    private static final Object SHARE_QUEUE_LOCK = new Object();
 
     private WebView kerabotWebView;
     private boolean showingRemoteKeraBot = false;
     private ValueCallback<Uri[]> filePathCallback;
     private ActivityResultLauncher<Intent> fileChooserLauncher;
     private Button[] navButtons = new Button[5];
-    private String pendingSharePayloadJson = null;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -94,6 +107,7 @@ public class MainActivity extends BridgeActivity {
         if (localWebView != null) {
             configurePersistentWebView(localWebView);
             localWebView.addJavascriptInterface(new SebaAndroidBridge(this), "SebaAndroidBridge");
+            registerPendingShare(localWebView);
             setupDualWebViewShell(localWebView);
         }
 
@@ -112,7 +126,12 @@ public class MainActivity extends BridgeActivity {
         });
 
         // Sprawdz czy aplikacja zostala otwarta przez Android "Udostepnij -> KeraBot AI HUB"
-        boolean handledShare = handleIncomingShareIntent(getIntent());
+        boolean handledShare = savedInstanceState == null && handleIncomingShareIntent(getIntent(), true);
+        if (!handledShare && oldestPendingShare() != null) {
+            switchToLocalTab("offline", 3);
+            deliverPendingShareToJs();
+            handledShare = true;
+        }
         if (!handledShare) {
             if (checkOnlineStatus()) {
                 openRemoteKeraBot(KERABOT_BASE_URL + "#pokoj", 0, false);
@@ -126,10 +145,10 @@ public class MainActivity extends BridgeActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        handleIncomingShareIntent(intent);
+        handleIncomingShareIntent(intent, false);
     }
 
-    private boolean handleIncomingShareIntent(Intent intent) {
+    private boolean handleIncomingShareIntent(Intent intent, boolean onLaunch) {
         if (intent == null) return false;
         String action = intent.getAction();
         String type = intent.getType();
@@ -141,6 +160,7 @@ public class MainActivity extends BridgeActivity {
 
         try {
             JSONArray items = new JSONArray();
+            int expected = 1;
             String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
             String sharedSubject = intent.getStringExtra(Intent.EXTRA_SUBJECT);
 
@@ -166,6 +186,7 @@ public class MainActivity extends BridgeActivity {
             } else if (Intent.ACTION_SEND_MULTIPLE.equals(action) && type.startsWith("image/")) {
                 ArrayList<Uri> uris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
                 if (uris != null) {
+                    expected = uris.size();
                     int maxCount = Math.min(uris.size(), 10);
                     for (int i = 0; i < maxCount; i++) {
                         String dataUrl = readScaledImageDataUrl(uris.get(i), 800);
@@ -182,21 +203,119 @@ public class MainActivity extends BridgeActivity {
             }
 
             if (items.length() > 0) {
-                pendingSharePayloadJson = items.toString();
+                storePendingShare(items, onLaunch);
+                if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+                    Toast.makeText(this, "Paczka zapisana. Zaktualizuj Android System WebView, aby otworzyć ją w Inboxie.",
+                            Toast.LENGTH_LONG).show();
+                }
+                if (items.length() < expected) {
+                    Toast.makeText(this, "Odebrano " + items.length() + " z " + expected
+                            + " plików. Udostępnij pozostałe osobno.", Toast.LENGTH_LONG).show();
+                }
                 switchToLocalTab("offline", 3);
                 deliverPendingShareToJs();
                 return true;
             }
-        } catch (Exception ignored) {}
+            Toast.makeText(this, "Nie udało się odczytać udostępnionych plików.", Toast.LENGTH_LONG).show();
+        } catch (Exception error) {
+            Log.w("KeraBot", "Zapis odebranej paczki nie powiódł się", error);
+            Toast.makeText(this, "Brak zapisu w Inboxie. Udostępnij pliki ponownie.", Toast.LENGTH_LONG).show();
+        }
         return false;
+    }
+
+    private File shareQueueDirectory() {
+        return new File(getNoBackupFilesDir(), "pending-shares");
+    }
+
+    private File oldestPendingShare() {
+        synchronized (SHARE_QUEUE_LOCK) {
+            File[] batches = shareQueueDirectory().listFiles((directory, name) -> name.endsWith(".json"));
+            if (batches == null || batches.length == 0) return null;
+            Arrays.sort(batches);
+            return batches[0];
+        }
+    }
+
+    private void storePendingShare(JSONArray items, boolean onLaunch) throws Exception {
+        synchronized (SHARE_QUEUE_LOCK) {
+            File directory = shareQueueDirectory();
+            if (!directory.isDirectory() && !directory.mkdirs()) {
+                throw new IOException("Nie można utworzyć kolejki odbioru");
+            }
+            byte[] data = items.toString().getBytes(StandardCharsets.UTF_8);
+            String fingerprint = Base64.encodeToString(MessageDigest.getInstance("SHA-256").digest(data),
+                    Base64.URL_SAFE | Base64.NO_WRAP | Base64.NO_PADDING);
+            String suffix = "-" + fingerprint + ".json";
+            if (onLaunch) {
+                // Android może wznowić to samo udostępnienie po awarii renderera.
+                String[] pending = directory.list((parent, name) -> name.endsWith(suffix));
+                if (pending == null) throw new IOException("Nie można odczytać kolejki odbioru");
+                if (pending.length > 0) return;
+            }
+            String batchId = System.currentTimeMillis() + "-" + UUID.randomUUID() + "-" + fingerprint;
+            JSONObject batch = new JSONObject();
+            batch.put("id", batchId);
+            batch.put("items", items);
+            AtomicFile file = new AtomicFile(new File(directory, batchId + ".json"));
+            FileOutputStream output = file.startWrite();
+            try {
+                output.write(batch.toString().getBytes(StandardCharsets.UTF_8));
+                file.finishWrite(output);
+            } catch (IOException error) {
+                file.failWrite(output);
+                throw error;
+            }
+            if (!file.getBaseFile().isFile()) throw new IOException("Nie zapisano paczki");
+        }
+    }
+
+    private void registerPendingShare(WebView localWebView) {
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) return;
+        WebViewCompat.addWebMessageListener(localWebView, "SebaPendingShare",
+                Collections.singleton("https://localhost"), (view, message, origin, mainFrame, reply) -> {
+                    if (!mainFrame) return;
+                    String request = message.getData();
+                    if (request == null) return;
+                    int separator = request.indexOf('\n');
+                    if (separator <= 0) return;
+                    String prefix = request.substring(0, separator + 1);
+                    String operation = request.substring(separator + 1);
+                    if ("peek".equals(operation)) {
+                        reply.postMessage(prefix + readPendingShare());
+                    } else if (operation.startsWith("ack:")) {
+                        reply.postMessage(prefix + acknowledgePendingShare(operation.substring(4)));
+                    }
+                });
+    }
+
+    private String readPendingShare() {
+        synchronized (SHARE_QUEUE_LOCK) {
+            File pending = oldestPendingShare();
+            if (pending == null) return "";
+            try {
+                return new String(new AtomicFile(pending).readFully(), StandardCharsets.UTF_8);
+            } catch (IOException error) {
+                Log.w("KeraBot", "Odczyt paczki nie powiódł się", error);
+                return "{}";
+            }
+        }
+    }
+
+    private boolean acknowledgePendingShare(String batchId) {
+        synchronized (SHARE_QUEUE_LOCK) {
+            File pending = oldestPendingShare();
+            if (pending == null || !pending.getName().equals(batchId + ".json")) return false;
+            new AtomicFile(pending).delete();
+            return !pending.exists();
+        }
     }
 
     private void deliverPendingShareToJs() {
         runOnUiThread(() -> {
             WebView localWv = getBridge().getWebView();
-            if (localWv == null || pendingSharePayloadJson == null) return;
+            if (localWv == null) return;
             localWv.postDelayed(() -> {
-                if (pendingSharePayloadJson == null) return;
                 localWv.evaluateJavascript("if(window.SebaConsumePendingShare){window.SebaConsumePendingShare();}", null);
             }, 650);
         });
@@ -565,13 +684,6 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public boolean isOnline() {
             return checkOnlineStatus();
-        }
-
-        @JavascriptInterface
-        public String consumePendingShareJson() {
-            String out = pendingSharePayloadJson;
-            pendingSharePayloadJson = null;
-            return out != null ? out : "";
         }
 
         @JavascriptInterface

@@ -164,9 +164,11 @@
     try { return JSON.parse(localStorage.getItem(OUTBOX_KEY) || "[]"); } catch (e) { return []; }
   }
   function saveOutbox(items) {
-    try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(items.slice(0, 60))); } catch (e) {
-      // Gdy braknie miejsca w localStorage -> przytnij starsze elementy ze zdjeciami
-      try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(items.slice(0, 25))); } catch (e2) {}
+    try {
+      localStorage.setItem(OUTBOX_KEY, JSON.stringify(items));
+      return true;
+    } catch (e) {
+      return false;
     }
   }
 
@@ -228,43 +230,94 @@
     list.querySelectorAll("[data-del-id]").forEach((el) => {
       el.addEventListener("click", () => {
         const next = loadOutbox().filter((x) => String(x.id) !== String(el.dataset.delId));
-        saveOutbox(next);
+        if (!saveOutbox(next)) {
+          setStatus("outbox-status", "Nie udało się zapisać zmiany w Inboxie.");
+          return;
+        }
         renderOutbox();
+        consumePendingAndroidShare();
       });
     });
   }
 
   // Odbior zrzutow/tekstow udostepnionych z Androida ("Udostepnij -> KeraBot AI HUB")
-  function consumePendingAndroidShare() {
-    if (typeof window.SebaAndroidBridge === "undefined" || !window.SebaAndroidBridge.consumePendingShareJson) {
-      return 0;
-    }
+  let pendingShareRequestId = 0;
+  let consumingPendingShare = false;
+
+  function requestPendingShare(bridge, operation) {
+    const prefix = String(++pendingShareRequestId) + "\n";
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        bridge.onmessage = null;
+        reject(new Error("Brak odpowiedzi z Androida"));
+      }, 5000);
+      bridge.onmessage = ({ data }) => {
+        if (typeof data !== "string" || !data.startsWith(prefix)) return;
+        clearTimeout(timeout);
+        bridge.onmessage = null;
+        resolve(data.slice(prefix.length));
+      };
+      try {
+        bridge.postMessage(prefix + operation);
+      } catch (error) {
+        clearTimeout(timeout);
+        bridge.onmessage = null;
+        reject(error);
+      }
+    });
+  }
+
+  async function consumePendingAndroidShare() {
+    const bridge = window.SebaPendingShare;
+    if (!bridge || consumingPendingShare) return 0;
+    consumingPendingShare = true;
+    let saved = 0;
+    let status = "";
     try {
-      const raw = window.SebaAndroidBridge.consumePendingShareJson();
-      if (!raw) return 0;
-      const shared = JSON.parse(raw);
-      if (!Array.isArray(shared) || !shared.length) return 0;
-      const items = loadOutbox();
-      const now = new Date().toLocaleString("pl-PL");
-      shared.forEach((s, idx) => {
-        items.unshift({
-          id: Date.now() + idx,
-          text: String(s.text || "Zrzut z Androida"),
-          photo: s.photo || null,
-          category: s.category || "zrzut",
-          source: s.source || "Udostępnij (Android)",
-          createdAt: now,
+      let raw = await requestPendingShare(bridge, "peek");
+      while (raw) {
+        const items = JSON.parse(localStorage.getItem(OUTBOX_KEY) || "[]");
+        if (!Array.isArray(items)) throw new Error("Nieprawidłowy Inbox");
+        const ids = new Set(items.map((item) => String(item.id)));
+        const batch = JSON.parse(raw);
+        if (typeof batch.id !== "string" || !Array.isArray(batch.items) || !batch.items.length) {
+          throw new Error("Nieprawidłowa paczka Androida");
+        }
+        const createdAt = new Date().toLocaleString("pl-PL");
+        const added = batch.items.map((item, index) => ({
+          id: "android-" + batch.id + "-" + index,
+          text: String(item.text || "Zrzut z Androida"),
+          photo: item.photo || null,
+          category: item.category || "zrzut",
+          source: item.source || "Udostępnij (Android)",
+          createdAt,
           sent: false
-        });
-      });
-      saveOutbox(items);
-      switchTab("offline");
-      renderOutbox();
-      setStatus("outbox-status", "📥 Odebrano z Androida (" + shared.length + " szt.) i zapisano w Inboxie Zrzutów!");
-      return shared.length;
+        })).filter((item) => !ids.has(item.id));
+        if (added.length && (items.length + added.length > 60 || !saveOutbox([...added, ...items]))) {
+          status = "Inbox jest pełny lub nie ma miejsca na zapis. Paczka czeka w KeraBocie. Zwolnij miejsce w Inboxie.";
+          break;
+        }
+        saved += added.length;
+        if (await requestPendingShare(bridge, "ack:" + batch.id) !== "true") {
+          status = "Zapisano paczkę, ale potwierdzenie odbioru czeka na ponowne otwarcie Inboxa.";
+          break;
+        }
+        raw = await requestPendingShare(bridge, "peek");
+      }
+      if (!status && saved) {
+        status = "📥 Zapisano w Inboxie " + saved + " pozycji z Androida.";
+      }
     } catch (e) {
-      return 0;
+      status = "Nie udało się odczytać Inboxa lub zapisać paczki. Paczka czeka w KeraBocie.";
+    } finally {
+      consumingPendingShare = false;
     }
+    if (status) {
+      switchTab("offline");
+      if (saved) renderOutbox();
+      setStatus("outbox-status", status);
+    }
+    return saved;
   }
   window.SebaConsumePendingShare = consumePendingAndroidShare;
 
@@ -317,7 +370,10 @@
         sent: false
       });
     }
-    saveOutbox(items);
+    if (items.length > 60 || !saveOutbox(items)) {
+      setStatus("outbox-status", "Brak miejsca w Inboxie. Zachowano wpis i zdjęcia w formularzu.");
+      return;
+    }
     if ($("outbox-text")) $("outbox-text").value = "";
     pendingPhotos = [];
     renderOutbox();

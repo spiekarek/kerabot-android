@@ -90,6 +90,10 @@ if (fs.existsSync(appGradlePath) && fs.existsSync(updatesManifestPath)) {
   gradle = gradle.replace(/versionCode\s+\d+/, "versionCode " + vCode);
   gradle = gradle.replace(/versionName\s+"[^"]*"/, 'versionName "' + vName + '"');
 
+  if (!gradle.includes("androidx.webkit:webkit:")) {
+    gradle = gradle.replace(/(^dependencies\s*\{)/m, '$1\n    implementation "androidx.webkit:webkit:1.9.0"');
+  }
+
   if (!gradle.includes("kerabot-fixed.p12")) {
     const signingBlock = `
     signingConfigs {

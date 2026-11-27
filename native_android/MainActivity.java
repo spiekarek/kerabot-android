@@ -125,7 +125,7 @@ public class MainActivity extends BridgeActivity {
             configurePersistentWebView(localWebView);
             registerOfflineBackup(localWebView);
             localWebView.addJavascriptInterface(new SebaAndroidBridge(this), "SebaAndroidBridge");
-            localWebView.addJavascriptInterface(new PendingShareBridge(), "SebaPendingShare");
+            registerPendingShare(localWebView);
             setupDualWebViewShell(localWebView);
         }
 
@@ -222,6 +222,10 @@ public class MainActivity extends BridgeActivity {
 
             if (items.length() > 0) {
                 storePendingShare(items, onLaunch);
+                if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+                    Toast.makeText(this, "Paczka zapisana. Zaktualizuj Android System WebView, aby otworzyć ją w Inboxie.",
+                            Toast.LENGTH_LONG).show();
+                }
                 if (items.length() < expected) {
                     Toast.makeText(this, "Odebrano " + items.length() + " z " + expected
                             + " plików. Udostępnij pozostałe osobno.", Toast.LENGTH_LONG).show();
@@ -284,29 +288,44 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
-    public class PendingShareBridge {
-        @JavascriptInterface
-        public String peek() {
-            synchronized (SHARE_QUEUE_LOCK) {
-                File pending = oldestPendingShare();
-                if (pending == null) return "";
-                try {
-                    return new String(new AtomicFile(pending).readFully(), StandardCharsets.UTF_8);
-                } catch (IOException error) {
-                    Log.w("KeraBot", "Odczyt paczki nie powiódł się", error);
-                    return "{}";
-                }
+    private void registerPendingShare(WebView localWebView) {
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) return;
+        WebViewCompat.addWebMessageListener(localWebView, "SebaPendingShare",
+                Collections.singleton("https://localhost"), (view, message, origin, mainFrame, reply) -> {
+                    if (!mainFrame) return;
+                    String request = message.getData();
+                    if (request == null) return;
+                    int separator = request.indexOf('\n');
+                    if (separator <= 0) return;
+                    String prefix = request.substring(0, separator + 1);
+                    String operation = request.substring(separator + 1);
+                    if ("peek".equals(operation)) {
+                        reply.postMessage(prefix + readPendingShare());
+                    } else if (operation.startsWith("ack:")) {
+                        reply.postMessage(prefix + acknowledgePendingShare(operation.substring(4)));
+                    }
+                });
+    }
+
+    private String readPendingShare() {
+        synchronized (SHARE_QUEUE_LOCK) {
+            File pending = oldestPendingShare();
+            if (pending == null) return "";
+            try {
+                return new String(new AtomicFile(pending).readFully(), StandardCharsets.UTF_8);
+            } catch (IOException error) {
+                Log.w("KeraBot", "Odczyt paczki nie powiódł się", error);
+                return "{}";
             }
         }
+    }
 
-        @JavascriptInterface
-        public boolean acknowledge(String batchId) {
-            synchronized (SHARE_QUEUE_LOCK) {
-                File pending = oldestPendingShare();
-                if (pending == null || !pending.getName().equals(batchId + ".json")) return false;
-                new AtomicFile(pending).delete();
-                return !pending.exists();
-            }
+    private boolean acknowledgePendingShare(String batchId) {
+        synchronized (SHARE_QUEUE_LOCK) {
+            File pending = oldestPendingShare();
+            if (pending == null || !pending.getName().equals(batchId + ".json")) return false;
+            new AtomicFile(pending).delete();
+            return !pending.exists();
         }
     }
 

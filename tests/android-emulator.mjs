@@ -84,9 +84,19 @@ async function webview() {
 async function uiNodes() {
   await adb("shell", "uiautomator", "dump", "/sdcard/kerabot-qa-ui.xml");
   const xml = await adb("shell", "cat", "/sdcard/kerabot-qa-ui.xml");
-  return [...xml.matchAll(/<node (.*?)>/g)].map(match =>
-    Object.fromEntries([...match[1].matchAll(/([\w-]+)="([^"]*)"/g)].map(([, key, value]) => [key, value])),
-  );
+  const nodes = [];
+  const parents = [];
+  for (const match of xml.matchAll(/<node (.*?)>|<\/node>/g)) {
+    if (!match[1]) {
+      parents.pop();
+      continue;
+    }
+    const node = Object.fromEntries([...match[1].matchAll(/([\w-]+)="([^"]*)"/g)].map(([, key, value]) => [key, value]));
+    node.parent = parents.at(-1);
+    nodes.push(node);
+    if (!match[1].endsWith("/")) parents.push(node);
+  }
+  return nodes;
 }
 
 function saveButton(nodes) {
@@ -99,6 +109,12 @@ async function tap(node) {
   const coords = node.bounds.match(/\d+/g).map(Number);
   assert.equal(coords.length, 4);
   await adb("shell", "input", "tap", String((coords[0] + coords[2]) >> 1), String((coords[1] + coords[3]) >> 1));
+}
+
+function fileRow(nodes, name) {
+  let node = nodes.find(item => item.text === name && item.enabled === "true");
+  while (node && node.clickable !== "true") node = node.parent;
+  return node?.enabled === "true" ? node : null;
 }
 
 const component = pkg + "/pl.seba.kerabot.MainActivity";
@@ -142,7 +158,7 @@ try {
   await view.run("localStorage.removeItem(" + JSON.stringify(key) + "); location.reload();");
   await retry(() => view.run('typeof window.SebaSwitchLocalTab'), value => value === "function", "brak ekranu przed odtworzeniem");
   await view.run('window.SebaSwitchLocalTab("offline"); document.querySelector("#btn-outbox-import").click();');
-  const pick = nodes => nodes.find(node => /(^|, )kerabot-kolejka(?:\s*\(\d+\))?\.json($|, )/.test(node.text || node["content-desc"]) && node.enabled === "true");
+  const pick = nodes => fileRow(nodes, file.split("/").at(-1));
   const files = await retry(uiNodes, nodes => Boolean(pick(nodes)), "systemowy wybór nie pokazuje zapisanej kopii");
   await tap(pick(files));
   try {
@@ -156,6 +172,18 @@ try {
   assert.deepEqual(imported.map(({ copiedAt, ...item }) => item), records);
   await retry(() => view.run('document.querySelector(".outbox-img")?.naturalWidth'), n => n === 1, "nie wyświetlono przywróconego zdjęcia");
   console.log("Android: aplikacja odtworzyła tekst i wyświetliła zdjęcie z pliku systemowego.");
+
+  const syntheticShare = "Udostepnienie-probne-do-Inboxa";
+  await adb("shell", "am", "start", "-n", component, "-a", "android.intent.action.SEND",
+    "-t", "text/plain", "--es", "android.intent.extra.TEXT", syntheticShare);
+  const withShare = await retry(
+    () => view.run("JSON.parse(localStorage.getItem(" + JSON.stringify(key) + "))"),
+    state => state?.some(item => item.text === syntheticShare),
+    "brak testowego wpisu udostępnionego przez Androida",
+  );
+  assert.equal(withShare.filter(item => item.text === syntheticShare && item.category === "inne").length, 1);
+  assert.equal((await view.run('window.SebaAndroidBridge.peekPendingShareJson()')), "");
+  console.log("Android: udostępnienie systemowe zapisano w Inboxie i potwierdzono po zapisie.");
 } finally {
   await view.close();
 }

@@ -17,3 +17,5 @@ Wersja 0.3.0 nie ma przycisku eksportu. Oddzielna kompilacja testowa ma własną
 - `node --test tests/offline-backup.cjs` wymaga `playwright-core` na ścieżce modułów Node i Chrome wskazanego przez `CHROME_PATH`. Do porównania dodaj `BEFORE_ROOT` (katalog `www` bazowej wersji) i `PROOF_DIR` (katalog zrzutów).
 
 W świeżym katalogu roboczym z Android SDK i Javą uruchom `npm install`, `npx cap add android`, `npm run cap:sync` i `node scripts/apply_native_bridge.js --preview`. W wygenerowanym projekcie zbuduj `assembleDebug`. Identyfikator `pl.seba.kerabot.kolejkaqa` i standardowy podpis debug pozwalają badać tę kompilację obok obecnej instalacji. Próbę przeprowadź na fikcyjnych danych. Sprawdź zapis do pliku, anulowanie wyboru lokalizacji, odtworzenie tekstu i zdjęcia po świeżej instalacji oraz zachowanie kolejki po powtórnym odtworzeniu.
+
+Po zaliczeniu próby w GitHub Actions przebieg zawiera artefakt **KeraBot-kolejka-qa** z testowym APK.
